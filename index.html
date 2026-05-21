@@ -150,7 +150,8 @@ const db={
   async savePedido(p){
     const row={id:p.id,nf:p.nf||'',cliente:p.cliente,data_pedido:p.dataPedido||null,entrega:p.entrega,
       vendedor:p.vendedor||'',etapa:p.etapa,ultima_at:p.ultimaAt,obs:p.obs||'',
-      foto_producao:p.fotoP||null,foto_entrega:p.fotoE||null,historico:p.hist||[]};
+      produto:p.produto||'',quantidade:p.quantidade||'',area_entrega:p.areaEntrega||'',
+      foto_pedido:p.fotoPedido||null,foto_producao:p.fotoP||null,foto_entrega:p.fotoE||null,historico:p.hist||[]};
     await sb.from('pedidos').upsert(row,{onConflict:'id'});
   },
   // FOTOS — upload para storage, retorna URL pública
@@ -173,8 +174,9 @@ function rowToApp(r){
     id:r.id,nf:r.nf||'',cliente:r.cliente,dataPedido:r.data_pedido||'',
     entrega:r.entrega,vendedor:r.vendedor||'',etapa:r.etapa,
     ultimaAt:r.ultima_at||r.entrega,obs:r.obs||'',
+    produto:r.produto||'',quantidade:r.quantidade||'',areaEntrega:r.area_entrega||'',
     hist:Array.isArray(r.historico)?r.historico:[],
-    fotoP:r.foto_producao||null,fotoE:r.foto_entrega||null
+    fotoPedido:r.foto_pedido||null,fotoP:r.foto_producao||null,fotoE:r.foto_entrega||null
   };
 }
 
@@ -853,7 +855,12 @@ function CardPed({p,onClick}){
       e('span',{style:{width:7,height:7,borderRadius:99,background:corS(s),display:'block',boxShadow:`0 0 5px ${corS(s)}`}})
     ),
     // Linha 2 — Cliente
-    e('div',{style:{fontWeight:600,fontSize:13,marginBottom:10,marginTop:4}},p.cliente),
+    e('div',{style:{fontWeight:600,fontSize:13,marginBottom:6,marginTop:4}},p.cliente),
+    // Produto e qty
+    (p.produto||p.areaEntrega)&&e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}},
+      p.produto&&e('span',{style:{fontSize:11,color:'var(--muted)',background:'var(--surface)',borderRadius:5,padding:'2px 7px',maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},p.produto+(p.quantidade?' · '+p.quantidade:'')),
+      p.areaEntrega&&e('span',{style:{fontSize:11,color:'var(--muted)',background:'var(--surface)',borderRadius:5,padding:'2px 7px'}},'📍 '+p.areaEntrega)
+    ),
     // Linha 3 — Datas
     e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:10}},
       e('div',{style:{background:'var(--surface)',borderRadius:7,padding:'6px 8px'}},
@@ -943,7 +950,9 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
               pedido.fotoE&&pedido.nf&&pedido.nf!=='—'&&e('div',{style:{fontSize:11,color:'var(--muted)',background:'var(--border)',borderRadius:5,padding:'2px 8px',fontFamily:'DM Mono, monospace'}},pedido.nf)
             ),
             e('div',{style:{fontWeight:600,fontSize:14,marginBottom:2}},pedido.cliente),
-            pedido.vendedor&&e('div',{style:{color:'var(--muted)',fontSize:12}},'👤 '+pedido.vendedor)
+            pedido.vendedor&&e('div',{style:{color:'var(--muted)',fontSize:12}},'👤 '+pedido.vendedor),
+            pedido.areaEntrega&&e('div',{style:{color:'var(--muted)',fontSize:12}},'📍 '+pedido.areaEntrega),
+            pedido.produto&&e('div',{style:{color:'var(--muted)',fontSize:12}},pedido.produto+(pedido.quantidade?' · '+pedido.quantidade:''))
           ),
           e('button',{onClick:onClose,style:{background:'var(--surface)',border:'1px solid var(--border2)',borderRadius:8,padding:'6px',display:'flex',color:'var(--muted)'}},e(Ic.x))
         ),
@@ -1010,6 +1019,11 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
         // FOTOS
         e('div',{style:{marginBottom:18}},
           e('div',{style:{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--muted)',marginBottom:10}},'FOTOS DO PEDIDO'),
+          // Foto do pedido de venda (full width)
+          pedido.fotoPedido&&e('div',{style:{marginBottom:10,borderRadius:10,overflow:'hidden',border:'1px solid var(--border2)'}},
+            e('div',{style:{fontSize:10,color:'var(--muted)',padding:'6px 10px',background:'var(--surface)',fontWeight:600}},'📄 PEDIDO DE VENDA'),
+            e('img',{src:pedido.fotoPedido,style:{width:'100%',maxHeight:180,objectFit:'contain',display:'block',background:'#fff'}})
+          ),
           e('div',{className:'grid-2'},
             [['prod','fotoP','Produção'],['ent','fotoE','Entrega']].map(([tipo,fk,lbl])=>
               e('div',{key:tipo},
