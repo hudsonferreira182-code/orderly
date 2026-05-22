@@ -272,14 +272,18 @@ function App(){
   useEffect(()=>{
     async function init(){
       try{
-        const[us,pds,pends]=await Promise.all([db.getUsers(),db.getPedidos(),db.getPendentes()]);
-        setUsers(us);
-        setPedidos(pds.map(rowToApp));
+        const[us,pds,pends]=await Promise.all([
+          db.getUsers().catch(()=>[]),
+          db.getPedidos().catch(()=>[]),
+          db.getPendentes().catch(()=>[])
+        ]);
+        setUsers(us.length?us:USERS_INIT);
+        setPedidos(pds.length?pds.map(rowToApp):PEDIDOS_INIT);
         setPendentes(pends);
       }catch(err){
         console.error('Erro ao carregar dados:',err);
-        // Fallback para dados locais se Supabase falhar
-        setUsers(USERS_INIT);setPedidos(PEDIDOS_INIT);
+        setUsers(USERS_INIT);
+        setPedidos(PEDIDOS_INIT);
       }finally{setLoading(false);}
     }
     init();
@@ -373,11 +377,26 @@ function LoginFlow({users,setUsers,pendentes,setPendentes,onLogin}){
   const doLogin=async()=>{
     re();
     try{
-      const{data,error}=await sb.from('usuarios').select('*').eq('email',email.trim().toLowerCase()).eq('senha',senha).single();
-      if(error||!data){setErr('E-mail ou senha incorretos.');return;}
-      if(!data.ativo){setErr('Conta aguardando aprovação de um administrador.');return;}
-      onLogin(data);
-    }catch{setErr('Erro de conexão. Tente novamente.');}
+      // Tentar pelo Supabase primeiro
+      const{data,error}=await sb.from('usuarios').select('*').eq('email',email.trim().toLowerCase()).single();
+      if(!error&&data){
+        if(data.senha!==senha){setErr('E-mail ou senha incorretos.');return;}
+        if(!data.ativo){setErr('Conta aguardando aprovação de um administrador.');return;}
+        onLogin(data);return;
+      }
+      // Fallback: tentar dados locais
+      const u=users.find(x=>x.email===email.trim().toLowerCase()&&x.senha===senha);
+      if(!u){setErr('E-mail ou senha incorretos.');return;}
+      if(!u.ativo){setErr('Conta aguardando aprovação.');return;}
+      onLogin(u);
+    }catch(ex){
+      console.error('Login erro:',ex);
+      // Fallback: dados locais
+      const u=users.find(x=>x.email===email.trim().toLowerCase()&&x.senha===senha);
+      if(!u){setErr('E-mail ou senha incorretos.');return;}
+      if(!u.ativo){setErr('Conta aguardando aprovação.');return;}
+      onLogin(u);
+    }
   };
   const doCad=async()=>{
     re();
