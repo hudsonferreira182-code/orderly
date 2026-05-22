@@ -1100,27 +1100,26 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
   const fld=(k,v)=>setF(x=>({...x,[k]:v}));
   const nextId=()=>`PED-${Math.max(...pedidos.map(p=>parseInt(p.id.replace('PED-',''))||0))+1}`;
 
-  // Processar imagem (arquivo ou blob do paste)
+  // Processar imagem ou PDF
   const processarImagem=async(blob)=>{
     setOcrLoad(true);setErr('');
+    const isPDF=blob.type==='application/pdf';
     const reader=new FileReader();
     reader.onload=async(x)=>{
       const dataUrl=x.target.result;
-      setFotoPedido(dataUrl);
+      // Para PDF mostramos ícone; para imagem mostramos preview
+      setFotoPedido(isPDF?'__pdf__':dataUrl);
       const b64=dataUrl.split(',')[1];
-      const mtype=blob.type||'image/jpeg';
+      const PROMPT='Analise este pedido de venda e extraia os dados em JSON puro sem markdown. Retorne APENAS o JSON com estes campos: {"numeroPedido":"","cliente":"","dataPedido":"YYYY-MM-DD","dataEntrega":"YYYY-MM-DD","vendedor":"","produto":"descricao do produto principal","quantidade":"","areaEntrega":"municipio ou area"}';
+      // Montar content diferente para PDF vs imagem
+      const content=isPDF
+        ?[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:PROMPT}]
+        :[{type:'image',source:{type:'base64',media_type:blob.type||'image/jpeg',data:b64}},{type:'text',text:PROMPT}];
       try{
         const resp=await fetch('https://api.anthropic.com/v1/messages',{
           method:'POST',
           headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({
-            model:'claude-sonnet-4-20250514',
-            max_tokens:1000,
-            messages:[{role:'user',content:[
-              {type:'image',source:{type:'base64',media_type:mtype,data:b64}},
-              {type:'text',text:'Analise este pedido de venda e extraia os dados em JSON puro sem markdown. Retorne APENAS o JSON com estes campos: {"numeroPedido":"","cliente":"","dataPedido":"YYYY-MM-DD","dataEntrega":"YYYY-MM-DD","vendedor":"","produto":"descricao do produto principal","quantidade":"","areaEntrega":"municipio ou area"}'}
-            ]}]
-          })
+          body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content}]})
         });
         const data=await resp.json();
         const txt=data.content?.[0]?.text||'{}';
@@ -1191,7 +1190,7 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
   );
 
   return e('div',{className:'modal-overlay',onClick:ev=>{if(ev.target===ev.currentTarget)onClose();}},
-    e('input',{type:'file',accept:'image/*',ref:ocrRef,style:{display:'none'},onChange:handleOCR}),
+    e('input',{type:'file',accept:'image/*,application/pdf',ref:ocrRef,style:{display:'none'},onChange:handleOCR}),
     e('div',{className:'modal-box'},
       e('div',{style:{padding:'16px 18px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}},
         e('span',{style:{fontWeight:700,fontSize:16}},'Novo Pedido'),
@@ -1201,7 +1200,15 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
         e('div',{style:{marginBottom:14}},
           fotoPedido
             ?e('div',{style:{position:'relative',borderRadius:10,overflow:'hidden',border:'1px solid var(--green-bd)'}},
-                e('img',{src:fotoPedido,style:{width:'100%',maxHeight:120,objectFit:'cover',display:'block'}}),
+                fotoPedido==='__pdf__'
+                  ?e('div',{style:{background:'var(--surface)',padding:'20px',display:'flex',alignItems:'center',gap:12}},
+                      e('span',{style:{fontSize:32}},'📄'),
+                      e('div',{},
+                        e('div',{style:{fontWeight:600,fontSize:13}},'PDF importado'),
+                        e('div',{style:{fontSize:11,color:'var(--muted)'}},'Arquivo PDF lido pela IA')
+                      )
+                    )
+                  :e('img',{src:fotoPedido,style:{width:'100%',maxHeight:120,objectFit:'cover',display:'block'}}),
                 e('div',{style:{position:'absolute',inset:0,background:'#00000077',display:'flex',alignItems:'center',justifyContent:'center',gap:12}},
                   ocrLoad&&e('span',{style:{color:'#fff',fontSize:13,fontWeight:600}},'⏳ Lendo pedido...'),
                   !ocrLoad&&e('div',{style:{display:'flex',gap:8}},
@@ -1216,7 +1223,7 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
                   :e(Fragment,{},
                       e('span',{style:{fontSize:22}},'📄'),
                       e('span',{style:{color:'var(--accent2)',fontWeight:700,fontSize:13}},'Importar via foto do pedido'),
-                      e('span',{style:{color:'var(--muted)',fontSize:11}},'Clique para importar ou Cole com Ctrl+V')
+                      e('span',{style:{color:'var(--muted)',fontSize:11}},'Imagem ou PDF · Ctrl+V para colar')
                     )
               )
         ),
