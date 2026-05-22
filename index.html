@@ -1146,13 +1146,10 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
         ?[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:PROMPT}]
         :[{type:'image',source:{type:'base64',media_type:blob.type||'image/jpeg',data:b64}},{type:'text',text:PROMPT}];
       try{
-        // Chamar Edge Function do Supabase (evita CORS)
+        // Chamar Edge Function do Supabase via Gemini (sem CORS)
         const resp=await fetch('https://ogqxsiybrbdywcbeudhm.supabase.co/functions/v1/ocr-pedido',{
           method:'POST',
-          headers:{
-            'Content-Type':'application/json',
-            'Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ncXhzaXlicmJkeXdjYmV1ZGhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMjYxMjAsImV4cCI6MjA5NDkwMjEyMH0.Pw3qxAZTddzOWgkP8YY3XraElO0wT_4l1EPxcH54nA4'
-          },
+          headers:{'Content-Type':'application/json'},
           body:JSON.stringify({imageBase64:b64,mediaType:blob.type||'image/jpeg'})
         });
         const parsed=await resp.json();
