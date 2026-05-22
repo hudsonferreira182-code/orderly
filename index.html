@@ -182,20 +182,7 @@ function rowToApp(r){
 
 // ── DADOS ─────────────────────────────────────────────
 const HOJE=new Date();
-const PEDIDOS_INIT=[
-  {id:'PED-1042',nf:'NF-8821',cliente:'Indústria Atlas Ltda.',dataPedido:'2026-05-10',entrega:'2026-05-15',vendedor:'Carlos Mendes',etapa:'Expedição',ultimaAt:'2026-05-12',obs:'',hist:[{d:'10/05 09:00',m:'Pedido recebido',u:'Sistema'},{d:'12/05 14:30',m:'Produção concluída',u:'Produção'}],fotoP:null,fotoE:null},
-  {id:'PED-1043',nf:'NF-8822',cliente:'Norvik Engenharia',dataPedido:'2026-05-10',entrega:'2026-05-16',vendedor:'Amanda Reis',etapa:'Expedição',ultimaAt:'2026-05-15',obs:'',hist:[{d:'10/05 11:00',m:'Pedido recebido',u:'Sistema'}],fotoP:null,fotoE:null},
-  {id:'PED-1044',nf:'NF-8830',cliente:'Marítima Sul S/A',dataPedido:'2026-05-11',entrega:'2026-05-17',vendedor:'Carlos Mendes',etapa:'Produção',ultimaAt:'2026-05-14',obs:'',hist:[{d:'11/05 08:00',m:'Pedido recebido',u:'Sistema'}],fotoP:null,fotoE:null},
-  {id:'PED-1045',nf:'NF-8835',cliente:'Construtora Vértice',dataPedido:'2026-05-12',entrega:'2026-05-18',vendedor:'Rafael Lima',etapa:'Produção',ultimaAt:'2026-05-13',obs:'',hist:[{d:'12/05 10:00',m:'Pedido recebido',u:'Sistema'}],fotoP:null,fotoE:null},
-  {id:'PED-1053',nf:'NF-8840',cliente:'Vector Automação',dataPedido:'2026-05-14',entrega:'2026-05-19',vendedor:'Amanda Reis',etapa:'Produção',ultimaAt:'2026-05-16',obs:'',hist:[{d:'14/05 09:00',m:'Pedido recebido',u:'Sistema'}],fotoP:null,fotoE:null},
-  {id:'PED-1046',nf:'NF-8841',cliente:'Tecnometal Brasil',dataPedido:'2026-05-16',entrega:'2026-05-20',vendedor:'Rafael Lima',etapa:'Recebido',ultimaAt:'2026-05-16',obs:'',hist:[{d:'16/05 08:00',m:'Pedido recebido',u:'Sistema'}],fotoP:null,fotoE:null},
-  {id:'PED-1047',nf:'NF-8845',cliente:'Grupo Helvetia',dataPedido:'2026-05-13',entrega:'2026-05-21',vendedor:'Carlos Mendes',etapa:'Produção',ultimaAt:'2026-05-14',obs:'',hist:[{d:'13/05 15:00',m:'Pedido recebido',u:'Sistema'}],fotoP:null,fotoE:null},
-  {id:'PED-1048',nf:'NF-8800',cliente:'Logística Pampulha',dataPedido:'2026-05-10',entrega:'2026-05-13',vendedor:'Amanda Reis',etapa:'Entregue',ultimaAt:'2026-05-13',obs:'',hist:[{d:'13/05 16:00',m:'Entrega confirmada ✓',u:'Hudson'}],fotoP:null,fotoE:null},
-  {id:'PED-1050',nf:'NF-8850',cliente:'Aurum Construções',dataPedido:'2026-05-15',entrega:'2026-05-27',vendedor:'Rafael Lima',etapa:'Recebido',ultimaAt:'2026-05-16',obs:'',hist:[{d:'15/05 11:00',m:'Pedido recebido',u:'Sistema'}],fotoP:null,fotoE:null},
-  {id:'PED-1051',nf:'NF-8848',cliente:'Polo Industrial',dataPedido:'2026-05-14',entrega:'2026-05-21',vendedor:'Carlos Mendes',etapa:'Produção',ultimaAt:'2026-05-14',obs:'',hist:[],fotoP:null,fotoE:null},
-  {id:'PED-1052',nf:'NF-8810',cliente:'Siderúrgica Andina',dataPedido:'2026-05-10',entrega:'2026-05-14',vendedor:'Amanda Reis',etapa:'Entregue',ultimaAt:'2026-05-14',obs:'',hist:[{d:'14/05 17:00',m:'Entrega confirmada ✓',u:'Hudson'}],fotoP:null,fotoE:null},
-  {id:'PED-1049',nf:'NF-8838',cliente:'Refinaria Oeste',dataPedido:'2026-05-15',entrega:'2026-05-23',vendedor:'Rafael Lima',etapa:'Recebido',ultimaAt:'2026-05-15',obs:'',hist:[],fotoP:null,fotoE:null},
-];
+const PEDIDOS_INIT=[]
 const USERS_INIT=[
   {email:'juliana@econstrucao.com.br',senha:'Admin123',nome:'Juliana',funcao:'Gerente Comercial',whatsapp:'(11) 99999-0001',role:'admin',ativo:true},
   {email:'producao@econstrucao.com.br',senha:'Admin123',nome:'Produção',funcao:'Supervisor de Produção',whatsapp:'(11) 99999-0002',role:'admin',ativo:true},
