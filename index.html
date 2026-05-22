@@ -513,8 +513,8 @@ function Shell({user,pedidos,setPedidos,users,setUsers,pendentes,setPendentes,pa
 
   const NAV=[
     {id:'dashboard',lbl:'Início',Ic:Ic.home},
-    {id:'calendario',lbl:'Agenda',Ic:Ic.cal},
     {id:'pedidos',lbl:'Pedidos',Ic:Ic.box},
+    {id:'calendario',lbl:'Agenda',Ic:Ic.cal},
     ...(isAdmin?[{id:'usuarios',lbl:'Equipe',Ic:Ic.users,badge:pendCount}]:[]),
     {id:'relatorio',lbl:'Relatório',Ic:Ic.rel},
     {id:'config',lbl:'Config',Ic:Ic.cog},
