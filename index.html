@@ -1325,6 +1325,57 @@ function Usuarios({users,setUsers,pendentes,setPendentes}){
   );
 }
 
+// ── PERFIL EDITOR ─────────────────────────────────────
+function PerfilEditor({user,users,setUsers}){
+  const [editando,setEditando]=useState(false);
+  const [nome,setNome]=useState(user.nome||'');
+  const [funcao,setFuncao]=useState(user.funcao||'');
+  const [whatsapp,setWhatsapp]=useState(user.whatsapp||'');
+  const [msg,setMsg]=useState('');
+
+  const salvar=async()=>{
+    try{
+      await db.updateUser(user.email,{nome,funcao,whatsapp});
+      setUsers(us=>us.map(u=>u.email===user.email?{...u,nome,funcao,whatsapp}:u));
+      user.nome=nome;user.funcao=funcao;user.whatsapp=whatsapp;
+      setMsg('Perfil atualizado!');setEditando(false);
+      setTimeout(()=>setMsg(''),3000);
+    }catch(ex){console.error(ex);}
+  };
+
+  const Campo=({lbl,val,onChange,ph})=>e('div',{style:{marginBottom:10}},
+    e('label',{style:{display:'block',fontSize:9,color:'var(--muted)',fontWeight:600,textTransform:'uppercase',letterSpacing:'.07em',marginBottom:5}},lbl),
+    e('input',{className:'form-input',value:val,placeholder:ph||'',onChange:ev=>onChange(ev.target.value),style:{fontSize:13}})
+  );
+
+  return e('div',{},
+    e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:14}},
+      e('div',{style:{fontWeight:700,fontSize:14}},'Minha Conta'),
+      e('button',{onClick:()=>setEditando(!editando),style:{
+        background:editando?'var(--border)':'var(--accent-bg)',
+        border:'1px solid '+(editando?'var(--border2)':'var(--accent)'),
+        color:editando?'var(--muted)':'var(--accent2)',
+        borderRadius:8,padding:'5px 12px',fontSize:12,fontWeight:600,cursor:'pointer'
+      }},editando?'Cancelar':'Editar')
+    ),
+    msg&&e('div',{style:{background:'var(--green-bg)',border:'1px solid var(--green-bd)',borderRadius:8,padding:'8px 12px',marginBottom:12,color:'var(--green)',fontSize:13}},msg),
+    editando
+      ?e('div',{},
+          e(Campo,{lbl:'Nome',val:nome,onChange:setNome,ph:'Seu nome'}),
+          e(Campo,{lbl:'Funcao / Cargo',val:funcao,onChange:setFuncao,ph:'Ex: Analista de Logistica'}),
+          e(Campo,{lbl:'WhatsApp',val:whatsapp,onChange:setWhatsapp,ph:'(11) 99999-9999'}),
+          e('button',{className:'btn-primary',onClick:salvar,style:{marginTop:4}},'Salvar perfil')
+        )
+      :e('div',{style:{display:'flex',flexDirection:'column',gap:8}},
+          [{lbl:'NOME',val:user.nome},{lbl:'E-MAIL',val:user.email},{lbl:'FUNCAO',val:user.funcao||'Nao informada'},{lbl:'WHATSAPP',val:user.whatsapp||'Nao informado'},{lbl:'PAPEL',val:user.role==='admin'?'Administrador':'Operador'}]
+          .map(function(item){return e('div',{key:item.lbl,style:{background:'var(--surface)',borderRadius:10,padding:'10px 13px'}},
+            e('div',{style:{fontSize:9,color:'var(--muted)',marginBottom:3,textTransform:'uppercase',letterSpacing:'.07em'}},item.lbl),
+            e('div',{style:{fontWeight:600,wordBreak:'break-all',fontSize:13}},item.val)
+          );})
+        )
+  );
+}
+
 // ── CONFIGURAÇÕES ─────────────────────────────────────
 function Config({alertCfg,setAlertCfg,user,users,setUsers}){
   const [f,setF]=useState({atual:'',nova:'',conf:''});
@@ -1385,15 +1436,7 @@ function Config({alertCfg,setAlertCfg,user,users,setUsers}){
         e('button',{className:'btn-primary',onClick:salvarSenha},'Salvar senha')
       ),
       e('div',{className:'card'},
-        e('div',{style:{fontWeight:700,fontSize:14,marginBottom:14}},'👤 Minha Conta'),
-        e('div',{style:{display:'flex',flexDirection:'column',gap:10}},
-          [{lbl:'NOME',val:user.nome},{lbl:'E-MAIL',val:user.email},{lbl:'PAPEL',val:user.role==='admin'?'Administrador':'Operador'}].map(({lbl,val})=>
-            e('div',{key:lbl,style:{background:'var(--surface)',borderRadius:10,padding:'11px 13px'}},
-              e('div',{style:{fontSize:9,color:'var(--muted)',marginBottom:3,textTransform:'uppercase',letterSpacing:'.07em'}},lbl),
-              e('div',{style:{fontWeight:600,wordBreak:'break-all'}},val)
-            )
-          )
-        )
+        e(PerfilEditor,{user,users,setUsers})
       )
     )
   );
