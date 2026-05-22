@@ -265,13 +265,33 @@ function App(){
           db.getPedidos().catch(()=>[]),
           db.getPendentes().catch(()=>[])
         ]);
-        setUsers(us.length?us:USERS_INIT);
+        const listaUsers=us.length?us:USERS_INIT;
+        setUsers(listaUsers);
         setPedidos(pds.length?pds.map(rowToApp):PEDIDOS_INIT);
         setPendentes(pends);
+        // Restaurar sessão salva
+        try{
+          const saved=localStorage.getItem('orderly_session');
+          if(saved){
+            const{email,senha}=JSON.parse(saved);
+            const u=listaUsers.find(x=>x.email===email&&x.senha===senha&&x.ativo);
+            if(u){setUser(u);setPag('dashboard');}
+            else{localStorage.removeItem('orderly_session');}
+          }
+        }catch(ex){}
       }catch(err){
         console.error('Erro ao carregar dados:',err);
         setUsers(USERS_INIT);
         setPedidos(PEDIDOS_INIT);
+        // Tentar restaurar sessão mesmo com erro
+        try{
+          const saved=localStorage.getItem('orderly_session');
+          if(saved){
+            const{email,senha}=JSON.parse(saved);
+            const u=USERS_INIT.find(x=>x.email===email&&x.senha===senha&&x.ativo);
+            if(u){setUser(u);setPag('dashboard');}
+          }
+        }catch(ex){}
       }finally{setLoading(false);}
     }
     init();
@@ -334,8 +354,14 @@ function App(){
     });
   };
 
-  if(!user)return e(LoginFlow,{users,setUsers,pendentes,setPendentes,onLogin:(u)=>{setUser(u);setPag('dashboard');}});
-  return e(Shell,{user,pedidos,setPedidos:setPedidosDB,users,setUsers,pendentes,setPendentes,pag,setPag,alertCfg,setAlertCfg,notifs,setNotifs,onLogout:()=>{setUser(null);}});
+  if(!user)return e(LoginFlow,{users,setUsers,pendentes,setPendentes,onLogin:(u)=>{
+    try{localStorage.setItem('orderly_session',JSON.stringify({email:u.email,senha:u.senha}));}catch(ex){}
+    setUser(u);setPag('dashboard');
+  }});
+  return e(Shell,{user,pedidos,setPedidos:setPedidosDB,users,setUsers,pendentes,setPendentes,pag,setPag,alertCfg,setAlertCfg,notifs,setNotifs,onLogout:()=>{
+    try{localStorage.removeItem('orderly_session');}catch(ex){}
+    setUser(null);
+  }});
 }
 
 // ── CAMPO DE INPUT GLOBAL (fora de qualquer função para não perder foco) ──
