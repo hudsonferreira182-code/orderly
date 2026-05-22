@@ -289,6 +289,16 @@ function App(){
     init();
   },[]);
 
+  // Notificar admin quando chega cadastro novo
+  useEffect(()=>{
+    if(!user||user.role!=='admin'||pendentes.length===0)return;
+    setNotifs(n=>{
+      const jatem=n.find(x=>x.id==='pend');
+      if(jatem)return n.map(x=>x.id==='pend'?{...x,msg:`${pendentes.length} cadastro${pendentes.length>1?'s':''} aguardando aprovação`}:x);
+      return [{id:'pend',msg:`${pendentes.length} cadastro${pendentes.length>1?'s':''} aguardando aprovação`,tipo:'cadastro'},...n].slice(0,8);
+    });
+  },[pendentes.length,user]);
+
   // Alertas
   useEffect(()=>{
     if(!user||!alertCfg.ativo)return;
@@ -299,6 +309,10 @@ function App(){
         const ok=(alertCfg.escopo==='ambos'&&(s==='atrasado'||s==='atencao'))||(alertCfg.escopo==='atrasados'&&s==='atrasado')||(alertCfg.escopo==='risco'&&s==='atencao');
         if(ok)ns.push({id:Math.random(),msg:`${p.id} · ${p.cliente}`,tipo:s});
       });
+      // Notificar admins sobre cadastros pendentes
+      if(user.role==='admin'&&pendentes.length>0){
+        ns.push({id:'pend',msg:`${pendentes.length} cadastro${pendentes.length>1?'s':''} aguardando aprovação`,tipo:'cadastro'});
+      }
       if(ns.length)setNotifs(n=>[...ns.slice(0,3),...n].slice(0,8));
     };
     check();
@@ -582,7 +596,7 @@ function Shell({user,pedidos,setPedidos,users,setUsers,pendentes,setPendentes,pa
         ),
         notifs.length===0
           ?e('div',{style:{padding:'16px',textAlign:'center',color:'var(--muted)',fontSize:13}},'Nenhum alerta')
-          :notifs.slice(0,5).map((n,i)=>e('div',{key:i,style:{padding:'8px 14px',borderBottom:i<4?'1px solid var(--border)':'none',fontSize:12,borderLeft:`3px solid ${n.tipo==='atrasado'?'var(--red)':'var(--yellow)'}`,color:'var(--text)'}},n.msg))
+          :notifs.slice(0,5).map((n,i)=>e('div',{key:i,style:{padding:'8px 14px',borderBottom:i<4?'1px solid var(--border)':'none',fontSize:12,borderLeft:`3px solid ${n.tipo==='atrasado'?'var(--red)':n.tipo==='cadastro'?'var(--accent)':'var(--yellow)'}`,color:'var(--text)'}},n.tipo==='cadastro'?'👤 '+n.msg:n.msg))
       ),
       // Conteúdo
       e('div',{className:'main-content'},renderPag()),
