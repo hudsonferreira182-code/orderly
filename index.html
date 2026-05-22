@@ -1146,18 +1146,17 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
         ?[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:PROMPT}]
         :[{type:'image',source:{type:'base64',media_type:blob.type||'image/jpeg',data:b64}},{type:'text',text:PROMPT}];
       try{
-        const resp=await fetch('https://api.anthropic.com/v1/messages',{
+        // Chamar Edge Function do Supabase (evita CORS)
+        const resp=await fetch('https://ogqxsiybrbdywcbeudhm.supabase.co/functions/v1/ocr-pedido',{
           method:'POST',
           headers:{
             'Content-Type':'application/json',
-            'anthropic-dangerous-allow-browser':'true'
+            'Authorization':'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ncXhzaXlicmJkeXdjYmV1ZGhtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMjYxMjAsImV4cCI6MjA5NDkwMjEyMH0.Pw3qxAZTddzOWgkP8YY3XraElO0wT_4l1EPxcH54nA4'
           },
-          body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content}]})
+          body:JSON.stringify({imageBase64:b64,mediaType:blob.type||'image/jpeg'})
         });
-        const data=await resp.json();
-        const txt=data.content?.[0]?.text||'{}';
-        const clean=txt.replace(/```json|```/g,'').trim();
-        const parsed=JSON.parse(clean);
+        const parsed=await resp.json();
+        if(parsed.error)throw new Error(parsed.error);
         setF(prev=>({
           ...prev,
           cliente:parsed.cliente||prev.cliente,
