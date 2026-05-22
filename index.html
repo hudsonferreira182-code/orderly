@@ -1100,16 +1100,15 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
   const fld=(k,v)=>setF(x=>({...x,[k]:v}));
   const nextId=()=>`PED-${Math.max(...pedidos.map(p=>parseInt(p.id.replace('PED-',''))||0))+1}`;
 
-  const handleOCR=async(ev)=>{
-    const file=ev.target.files[0];if(!file)return;
-    ev.target.value='';
+  // Processar imagem (arquivo ou blob do paste)
+  const processarImagem=async(blob)=>{
     setOcrLoad(true);setErr('');
     const reader=new FileReader();
     reader.onload=async(x)=>{
       const dataUrl=x.target.result;
       setFotoPedido(dataUrl);
       const b64=dataUrl.split(',')[1];
-      const mtype=file.type||'image/jpeg';
+      const mtype=blob.type||'image/jpeg';
       try{
         const resp=await fetch('https://api.anthropic.com/v1/messages',{
           method:'POST',
@@ -1142,8 +1141,33 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
         console.error(ex);
       }finally{setOcrLoad(false);}
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(blob);
   };
+
+  const handleOCR=async(ev)=>{
+    const file=ev.target.files[0];if(!file)return;
+    ev.target.value='';
+    processarImagem(file);
+  };
+
+  // Paste via Ctrl+V
+  const handlePaste=useRef(null);
+  useEffect(()=>{
+    const fn=(ev)=>{
+      const items=ev.clipboardData?.items;
+      if(!items)return;
+      for(const item of items){
+        if(item.type.startsWith('image/')){
+          ev.preventDefault();
+          const blob=item.getAsFile();
+          if(blob)processarImagem(blob);
+          break;
+        }
+      }
+    };
+    document.addEventListener('paste',fn);
+    return()=>document.removeEventListener('paste',fn);
+  },[]);
 
   const salvar=async()=>{
     if(!f.cliente.trim()){setErr('Informe o cliente.');return;}
@@ -1192,7 +1216,7 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
                   :e(Fragment,{},
                       e('span',{style:{fontSize:22}},'📄'),
                       e('span',{style:{color:'var(--accent2)',fontWeight:700,fontSize:13}},'Importar via foto do pedido'),
-                      e('span',{style:{color:'var(--muted)',fontSize:11}},'IA lê e preenche automaticamente')
+                      e('span',{style:{color:'var(--muted)',fontSize:11}},'Clique para importar ou Cole com Ctrl+V')
                     )
               )
         ),
