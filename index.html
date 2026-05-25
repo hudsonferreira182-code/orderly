@@ -211,6 +211,14 @@ const etqDias=entrega=>{
 };
 const fmtD=s=>{if(!s)return'';const d=new Date(s+'T12:00:00');return`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;};
 const agora=()=>new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+// Remove prefixo numérico do vendedor: "6 - ANDRE" → "Andre", "2 - Michell Dias" → "Michell Dias"
+const limparVendedor=v=>{
+  if(!v)return v;
+  const m=v.match(/^\d+\s*[-/]\s*(.+)$/);
+  const nome=m?m[1].trim():v.trim();
+  // Capitaliza: "MICHELL DIAS" → "Michell Dias"
+  return nome.replace(/\w\S*/g,t=>t.charAt(0).toUpperCase()+t.slice(1).toLowerCase());
+};
 const validaSenha=s=>{
   if(s.length<8)return'Mínimo 8 caracteres';
   if(!/[A-Z]/.test(s))return'Precisa de 1 maiúscula';
@@ -1245,7 +1253,7 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
           cliente:parsed.cliente||prev.cliente,
           dataPedido:parsed.dataPedido||prev.dataPedido,
           entrega:parsed.dataEntrega||prev.entrega,
-          vendedor:parsed.vendedor||prev.vendedor,
+          vendedor:limparVendedor(parsed.vendedor||prev.vendedor),
           produto:parsed.produto||prev.produto,
           quantidade:String(parsed.quantidade||prev.quantidade),
           areaEntrega:parsed.areaEntrega||prev.areaEntrega,
@@ -1289,7 +1297,7 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
     if(!f.vendedor.trim()){setErr('Informe o vendedor.');return;}
     const novoPed={
       id:nextId(),nf:'',cliente:f.cliente,dataPedido:f.dataPedido,entrega:f.entrega,
-      vendedor:f.vendedor,produto:f.produto,quantidade:f.quantidade,areaEntrega:f.areaEntrega,
+      vendedor:limparVendedor(f.vendedor),produto:f.produto,quantidade:f.quantidade,areaEntrega:f.areaEntrega,
       etapa:f.etapa,ultimaAt:new Date().toISOString().split('T')[0],obs:'',
       hist:[{d:agora(),m:'Pedido criado'+(fotoPedido?' via foto':''),u:user.nome}],
       fotoPedido:fotoPedido,fotoP:null,fotoE:null,prioridade:null
