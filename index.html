@@ -87,8 +87,8 @@ img{max-width:100%;height:auto;display:block}
 .filter-btn{padding:7px 14px;border-radius:99px;border:1px solid var(--border2);white-space:nowrap;font-size:13px;color:var(--muted);background:transparent;transition:all .15s;flex-shrink:0}
 .filter-btn.active{background:var(--text);color:var(--bg);font-weight:600;border-color:var(--text)}
 
-.cal-cell{min-height:80px;padding:5px;border-left:1px solid var(--border)}
-@media(min-width:600px){.cal-cell{min-height:100px;padding:8px}}
+.cal-cell{height:80px;padding:5px;border-left:1px solid var(--border);overflow:hidden}
+@media(min-width:600px){.cal-cell{height:100px;padding:8px}}
 
 .toggle-track{width:42px;height:24px;border-radius:99px;border:none;position:relative;transition:background .2s;cursor:pointer;flex-shrink:0}
 .toggle-thumb{position:absolute;top:3px;width:18px;height:18px;border-radius:99px;background:#fff;transition:left .2s;box-shadow:0 1px 4px #0005}
@@ -861,9 +861,10 @@ function Calendario({pedidos,onAbrir}){
               e('div',{style:{display:'inline-flex',width:18,height:18,borderRadius:99,fontSize:11,alignItems:'center',justifyContent:'center',fontWeight:isH?700:400,background:isH?'var(--accent)':'transparent',color:isH?'#fff':'var(--muted)',marginBottom:3}},dia),
               ps.slice(0,1).map(p=>{
                 const s=calcStatus(p);
+                const nomeCliente=p.cliente.length>22?p.cliente.slice(0,22)+'…':p.cliente;
                 return e('div',{key:p.id,onClick:()=>onAbrir(p.id),style:{fontSize:9,background:bgS(s),border:`1px solid ${bdS(s)}`,borderLeft:`2px solid ${corS(s)}`,borderRadius:3,padding:'2px 5px',cursor:'pointer',overflow:'hidden',color:corS(s)}},
                   e('div',{style:{fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},p.id),
-                  e('div',{style:{color:'var(--muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',marginTop:1}},p.cliente)
+                  e('div',{style:{color:'var(--muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',marginTop:1}},nomeCliente)
                 );
               }),
               ps.length>1&&e('div',{style:{fontSize:9,color:'var(--muted)',marginTop:1}},`+${ps.length-1}`)
