@@ -1197,7 +1197,7 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
   const [fotoPedido,setFotoPedido]=useState(null);
   const ocrRef=useRef();
   const fld=(k,v)=>setF(x=>({...x,[k]:v}));
-  const nextId=()=>`PED-${Math.max(...pedidos.map(p=>parseInt(p.id.replace('PED-',''))||0))+1}`;
+  const nextId=()=>{const nums=pedidos.map(p=>parseInt(p.id.replace(/^PED-/,''))||0).filter(n=>isFinite(n));return`PED-${(nums.length?Math.max(...nums):0)+1}`;};
 
   // Processar imagem ou PDF
   const processarImagem=async(blob)=>{
