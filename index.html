@@ -928,7 +928,7 @@ function ProdutoTabela({produto,quantidade,style}){
       e('div',{style:{fontSize:9,color:'var(--muted)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',paddingBottom:3,marginBottom:3}},'Descrição'),
       e('div',{style:{fontSize:9,color:'var(--muted)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',paddingBottom:3,marginBottom:3,textAlign:'right'}},'Qtd'),
       ...itens.map((it,i)=>[
-        e('div',{key:'d'+i,style:{fontSize:11,color:'var(--muted)',padding:'1px 0'}},'it.desc'),
+        e('div',{key:'d'+i,style:{fontSize:11,color:'var(--muted)',padding:'1px 0'}},it.desc),
         e('div',{key:'q'+i,style:{fontSize:11,color:'var(--muted)',textAlign:'right',fontWeight:600,padding:'1px 0'}},it.qty||'—')
       ]).flat()
     )
