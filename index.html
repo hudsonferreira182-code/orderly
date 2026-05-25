@@ -408,7 +408,7 @@ function LoginFlow({users,setUsers,pendentes,setPendentes,onLogin}){
     re();
     try{
       // Tentar pelo Supabase primeiro
-      const{data,error}=await sb.from('usuarios').select('*').eq('email',email.trim().toLowerCase()).single();
+      const{data,error}=await sb.from('usuarios').select('*').eq('email',email.trim().toLowerCase()).maybeSingle();
       if(!error&&data){
         if(data.senha!==senha){setErr('E-mail ou senha incorretos.');return;}
         if(!data.ativo){setErr('Conta aguardando aprovação de um administrador.');return;}
