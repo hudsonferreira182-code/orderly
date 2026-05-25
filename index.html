@@ -904,6 +904,37 @@ function Pedidos({pedidos,setPedidos,user,onAbrir,onNovo}){
   );
 }
 
+
+// Renderiza lista de produtos como tabela
+function ProdutoTabela({produto,quantidade,style}){
+  if(!produto)return null;
+  const linhas=produto.split('\n').map(l=>l.trim()).filter(Boolean);
+  // Verificar se tem formato numerado "1 - DESC - QTD"
+  const temLista=linhas.length>1||/^\d+\s*-/.test(linhas[0]);
+  if(!temLista){
+    // produto simples — exibir inline
+    return e('div',{style:{fontSize:12,color:'var(--muted)',...(style||{})}},produto+(quantidade?' · '+quantidade:''));
+  }
+  const itens=linhas.map(l=>{
+    // "1 - DESCRICAO - QTD" ou "1 - DESCRICAO"
+    const m=l.match(/^\d+\s*-\s*(.+?)\s*-\s*(\d[\d.,]*)\s*$/);
+    if(m)return{desc:m[1].trim(),qty:m[2].trim()};
+    const m2=l.match(/^\d+\s*-\s*(.+)$/);
+    if(m2)return{desc:m2[1].trim(),qty:''};
+    return{desc:l,qty:''};
+  });
+  return e('div',{style:{marginTop:6,...(style||{})}},
+    e('div',{style:{display:'grid',gridTemplateColumns:'1fr auto',gap:'2px 12px'}},
+      e('div',{style:{fontSize:9,color:'var(--muted)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',paddingBottom:3,marginBottom:3}},'Descrição'),
+      e('div',{style:{fontSize:9,color:'var(--muted)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',paddingBottom:3,marginBottom:3,textAlign:'right'}},'Qtd'),
+      ...itens.map((it,i)=>[
+        e('div',{key:'d'+i,style:{fontSize:11,color:'var(--muted)',padding:'1px 0'}},'it.desc'),
+        e('div',{key:'q'+i,style:{fontSize:11,color:'var(--muted)',textAlign:'right',fontWeight:600,padding:'1px 0'}},it.qty||'—')
+      ]).flat()
+    )
+  );
+}
+
 function CardPed({p,onClick,isAdmin=true}){
   const s=calcStatus(p);const etq=etqDias(p.entrega);const par=diasParado(p.ultimaAt);
   return e('div',{onClick,style:{background:'var(--card)',border:`1px solid ${bdS(s)}`,borderLeft:`3px solid ${corS(s)}`,borderRadius:13,padding:14,cursor:'pointer',boxShadow:s==='atrasado'?'0 0 18px #f43f5e08':'none'}},
@@ -915,10 +946,8 @@ function CardPed({p,onClick,isAdmin=true}){
     // Linha 2 — Cliente
     e('div',{style:{fontWeight:600,fontSize:13,marginBottom:6,marginTop:4}},p.cliente),
     // Produto e qty
-    (p.produto||p.areaEntrega)&&e('div',{style:{display:'flex',gap:6,flexWrap:'wrap',marginBottom:8}},
-      p.produto&&e('span',{style:{fontSize:11,color:'var(--muted)',background:'var(--surface)',borderRadius:5,padding:'2px 7px',maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}},p.produto+(p.quantidade?' · '+p.quantidade:'')),
-      p.areaEntrega&&e('span',{style:{fontSize:11,color:'var(--muted)',background:'var(--surface)',borderRadius:5,padding:'2px 7px'}},'📍 '+p.areaEntrega)
-    ),
+    p.areaEntrega&&e('div',{style:{fontSize:11,color:'var(--muted)',marginBottom:4}},'📍 '+p.areaEntrega),
+    p.produto&&e(ProdutoTabela,{produto:p.produto,quantidade:p.quantidade,style:{marginBottom:8,marginTop:0}}),
     // Linha 3 — Datas
     e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6,marginBottom:10}},
       e('div',{style:{background:'var(--surface)',borderRadius:7,padding:'6px 8px'}},
@@ -1010,7 +1039,7 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
             e('div',{style:{fontWeight:600,fontSize:14,marginBottom:2}},pedido.cliente),
             pedido.vendedor&&user.role==='admin'&&e('div',{style:{color:'var(--muted)',fontSize:12}},'👤 '+pedido.vendedor),
             pedido.areaEntrega&&e('div',{style:{color:'var(--muted)',fontSize:12}},'📍 '+pedido.areaEntrega),
-            pedido.produto&&e('div',{style:{color:'var(--muted)',fontSize:12}},pedido.produto+(pedido.quantidade?' · '+pedido.quantidade:''))
+            pedido.produto&&e(ProdutoTabela,{produto:pedido.produto,quantidade:pedido.quantidade,style:{marginTop:4}})
           ),
           e('button',{onClick:onClose,style:{background:'var(--surface)',border:'1px solid var(--border2)',borderRadius:8,padding:'6px',display:'flex',color:'var(--muted)'}},e(Ic.x))
         ),
