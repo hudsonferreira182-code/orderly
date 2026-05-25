@@ -1235,7 +1235,7 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
       // Para PDF mostramos ícone; para imagem mostramos preview
       setFotoPedido(isPDF?'__pdf__':dataUrl);
       const b64=dataUrl.split(',')[1];
-      const PROMPT='Analise este pedido de venda e extraia os dados em JSON puro sem markdown. Retorne APENAS o JSON com estes campos: {"numeroPedido":"","cliente":"","dataPedido":"YYYY-MM-DD","dataEntrega":"YYYY-MM-DD","vendedor":"apenas o nome da pessoa, sem codigo, sem duplicar","produto":"descricao do produto principal","quantidade":"","areaEntrega":"municipio ou area"}. Regras: vendedor deve ser APENAS o nome (ex: Michell Dias), nunca duplicado nem com codigo. Se aparecer separado por / ou E, use apenas a primeira ocorrencia.';
+      const PROMPT='Analise este pedido de venda e extraia os dados em JSON puro sem markdown. Retorne APENAS o JSON com estes campos: {"numeroPedido":"","cliente":"","dataPedido":"YYYY-MM-DD","dataEntrega":"YYYY-MM-DD","vendedor":"apenas o nome da pessoa, sem codigo, sem duplicar","produto":"descricao do produto principal","quantidade":"","areaEntrega":"municipio ou area"}. Regras: numeroPedido deve ser o numero principal do pedido (campo "Pedido:" no topo do documento, ex: 1707 - 0 ou 1707-0), NAO usar "Seu Pedido" nem numero do cliente. Retornar numeroPedido exatamente como aparece no campo Pedido (ex: "1707 - 0"). Vendedor deve ser APENAS o nome sem codigo. Se aparecer separado por / ou E, usar apenas o primeiro nome.';
       // Montar content diferente para PDF vs imagem
       const content=isPDF
         ?[{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},{type:'text',text:PROMPT}]
@@ -1259,7 +1259,11 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
           quantidade:String(parsed.quantidade||prev.quantidade),
           areaEntrega:parsed.areaEntrega||prev.areaEntrega,
         }));
-        if(parsed.numeroPedido)setNumOCR(String(parsed.numeroPedido).trim());
+        if(parsed.numeroPedido){
+          // "1707 - 0" → "1707-0", remove espaços ao redor do traço
+          const numLimpo=String(parsed.numeroPedido).trim().replace(/\s*-\s*/g,'-');
+          setNumOCR(numLimpo);
+        }
       }catch(ex){
         setErr('Erro ao ler o pedido. Preencha manualmente.');
         console.error(ex);
