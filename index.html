@@ -299,6 +299,16 @@ function App(){
     init();
   },[]);
 
+  // Polling pendentes a cada 30s para admins
+  useEffect(()=>{
+    if(!user||user.role!=='admin')return;
+    const tick=async()=>{
+      try{const p=await db.getPendentes();setPendentes(p);}catch(ex){}
+    };
+    const t=setInterval(tick,30000);
+    return()=>clearInterval(t);
+  },[user]);
+
   // Notificar admin quando chega cadastro novo
   useEffect(()=>{
     if(!user||user.role!=='admin'||pendentes.length===0)return;
@@ -439,10 +449,11 @@ function LoginFlow({users,setUsers,pendentes,setPendentes,onLogin}){
     if(senha!==conf){setErr('Senhas não conferem.');return;}
     try{
       const novo={email:email.toLowerCase(),senha,nome,funcao,whatsapp,role:'operador',ativo:false};
-      await db.addPendente(novo);
+      const{error}=await sb.from('pendentes').insert(novo).select();
+      if(error)throw error;
       setPendentes(p=>[...p,novo]);
       setTela('aguard');
-    }catch{setErr('Erro ao enviar solicitação. Tente novamente.');}
+    }catch(ex){console.error('Erro cadastro:',ex);setErr('Erro ao enviar solicitação: '+(ex?.message||'Tente novamente.'));}
   };
   const doReset=()=>{
     re();
