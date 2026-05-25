@@ -916,21 +916,14 @@ function ProdutoTabela({produto,quantidade,style}){
     return e('div',{style:{fontSize:12,color:'var(--muted)',...(style||{})}},produto+(quantidade?' · '+quantidade:''));
   }
   const itens=linhas.map(l=>{
-    // "1 - DESCRICAO - QTD" ou "1 - DESCRICAO"
-    const m=l.match(/^\d+\s*-\s*(.+?)\s*-\s*(\d[\d.,]*)\s*$/);
-    if(m)return{desc:m[1].trim(),qty:m[2].trim()};
-    const m2=l.match(/^\d+\s*-\s*(.+)$/);
-    if(m2)return{desc:m2[1].trim(),qty:''};
-    return{desc:l,qty:''};
+    // Remove número do início "1 - " se existir, mantém o resto intacto
+    const m=l.match(/^\d+\s*-\s*(.+)$/);
+    return m?m[1].trim():l;
   });
   return e('div',{style:{marginTop:6,...(style||{})}},
-    e('div',{style:{display:'grid',gridTemplateColumns:'1fr auto',gap:'2px 12px'}},
-      e('div',{style:{fontSize:9,color:'var(--muted)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',paddingBottom:3,marginBottom:3}},'Descrição'),
-      e('div',{style:{fontSize:9,color:'var(--muted)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em',borderBottom:'1px solid var(--border)',paddingBottom:3,marginBottom:3,textAlign:'right'}},'Qtd'),
-      ...itens.map((it,i)=>[
-        e('div',{key:'d'+i,style:{fontSize:11,color:'var(--muted)',padding:'1px 0'}},it.desc),
-        e('div',{key:'q'+i,style:{fontSize:11,color:'var(--muted)',textAlign:'right',fontWeight:600,padding:'1px 0'}},it.qty||'—')
-      ]).flat()
+    e('div',{style:{borderBottom:'1px solid var(--border)',paddingBottom:3,marginBottom:3,fontSize:9,color:'var(--muted)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.06em'}},'Descrição'),
+    ...itens.map((desc,i)=>
+      e('div',{key:i,style:{fontSize:11,color:'var(--muted)',padding:'1px 0'}},desc)
     )
   );
 }
