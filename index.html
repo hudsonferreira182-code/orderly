@@ -1217,6 +1217,7 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
 // ── MODAL NOVO PEDIDO ─────────────────────────────────
 function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
   const [f,setF]=useState({cliente:'',dataPedido:'',entrega:'',vendedor:'',produto:'',quantidade:'',areaEntrega:'',etapa:'Recebido'});
+  const [numOCR,setNumOCR]=useState('');
   const [err,setErr]=useState('');
   const [ocrLoad,setOcrLoad]=useState(false);
   const [fotoPedido,setFotoPedido]=useState(null);
@@ -1258,6 +1259,7 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
           quantidade:String(parsed.quantidade||prev.quantidade),
           areaEntrega:parsed.areaEntrega||prev.areaEntrega,
         }));
+        if(parsed.numeroPedido)setNumOCR(String(parsed.numeroPedido).trim());
       }catch(ex){
         setErr('Erro ao ler o pedido. Preencha manualmente.');
         console.error(ex);
@@ -1295,8 +1297,9 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
     if(!f.cliente.trim()){setErr('Informe o cliente.');return;}
     if(!f.entrega){setErr('Informe a data de entrega.');return;}
     if(!f.vendedor.trim()){setErr('Informe o vendedor.');return;}
+    const idFinal=numOCR?`PED-${numOCR}`:nextId();
     const novoPed={
-      id:nextId(),nf:'',cliente:f.cliente,dataPedido:f.dataPedido,entrega:f.entrega,
+      id:idFinal,nf:'',cliente:f.cliente,dataPedido:f.dataPedido,entrega:f.entrega,
       vendedor:limparVendedor(f.vendedor),produto:f.produto,quantidade:f.quantidade,areaEntrega:f.areaEntrega,
       etapa:f.etapa,ultimaAt:new Date().toISOString().split('T')[0],obs:'',
       hist:[{d:agora(),m:'Pedido criado'+(fotoPedido?' via foto':''),u:user.nome}],
