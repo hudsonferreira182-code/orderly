@@ -864,7 +864,7 @@ function Calendario({pedidos,onAbrir}){
                 const nomeCliente=p.cliente.length>22?p.cliente.slice(0,22)+'…':p.cliente;
                 return e('div',{key:p.id,onClick:()=>onAbrir(p.id),style:{fontSize:9,background:bgS(s),border:`1px solid ${bdS(s)}`,borderLeft:`2px solid ${corS(s)}`,borderRadius:3,padding:'2px 5px',cursor:'pointer',overflow:'hidden',color:corS(s)}},
                   e('div',{style:{fontWeight:700,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}},p.id),
-                  e('div',{style:{color:'var(--muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',marginTop:1}},nomeCliente)
+                  e('div',{style:{color:'var(--muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',marginTop:1,fontWeight:700}},nomeCliente)
                 );
               }),
               ps.length>1&&e('div',{style:{fontSize:9,color:'var(--muted)',marginTop:1}},`+${ps.length-1}`)
