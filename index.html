@@ -1101,7 +1101,7 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
               }
             },
               priorAtual?`${priorAtual.icon} ${priorAtual.lbl}`:'⚪ Sem prioridade',
-              isAdmin&&e('span',{style:{fontSize:9,opacity:.6,marginLeft:2}},'▾')
+              canEditPrior&&e('span',{style:{fontSize:9,opacity:.6,marginLeft:2}},'▾')
             ),
             showPriorMenu&&canEditPrior&&e('div',{style:{position:'absolute',top:'110%',left:0,zIndex:999,background:'var(--card)',border:'1px solid var(--border2)',borderRadius:10,boxShadow:'0 8px 24px #0008',minWidth:160,padding:6}},
               PRIORIDADES.map(pr=>e('div',{
