@@ -549,6 +549,9 @@ function Shell({user,pedidos,setPedidos,users,setUsers,pendentes,setPendentes,pa
   const [showNovo,setShowNovo]=useState(false);
   const [showNotifs,setShowNotifs]=useState(false);
   const isAdmin=user.role==='admin';
+  const EMAILS_FULL=['juliana@econstrucao.com.br','producao@econstrucao.com.br','vendas05@econstrucao.com.br'];
+  const canVerTodos=EMAILS_FULL.includes(user.email?.toLowerCase());
+  const pedidosVisiveis=canVerTodos?pedidos:pedidos.filter(p=>p.vendedor&&p.vendedor.toLowerCase()===user.nome?.toLowerCase());
   const pendCount=pendentes.length;
   const notifsN=notifs.length;
 
@@ -564,11 +567,11 @@ function Shell({user,pedidos,setPedidos,users,setUsers,pendentes,setPendentes,pa
   const avatar=e('div',{style:{width:28,height:28,borderRadius:7,background:'var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:13,flexShrink:0}},user.nome[0].toUpperCase());
 
   const renderPag=()=>{
-    if(pag==='dashboard')return e(Dashboard,{pedidos,onAbrir:setPedAberto,user});
-    if(pag==='calendario')return e(Calendario,{pedidos,onAbrir:setPedAberto});
-    if(pag==='pedidos')return e(Pedidos,{pedidos,setPedidos,user,onAbrir:setPedAberto,onNovo:()=>setShowNovo(true)});
+    if(pag==='dashboard')return e(Dashboard,{pedidos:pedidosVisiveis,onAbrir:setPedAberto,user});
+    if(pag==='calendario')return e(Calendario,{pedidos:pedidosVisiveis,onAbrir:setPedAberto});
+    if(pag==='pedidos')return e(Pedidos,{pedidos:pedidosVisiveis,setPedidos,user,onAbrir:setPedAberto,onNovo:()=>setShowNovo(true)});
     if(pag==='usuarios'&&isAdmin)return e(Usuarios,{users,setUsers,pendentes,setPendentes});
-    if(pag==='relatorio')return e(Relatorio,{pedidos,user});
+    if(pag==='relatorio')return e(Relatorio,{pedidos:pedidosVisiveis,user});
     if(pag==='config')return e(Config,{alertCfg,setAlertCfg,user,users,setUsers});
     return null;
   };
@@ -1006,6 +1009,8 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
   if(!pedido)return null;
   const s=calcStatus(pedido);const etq=etqDias(pedido.entrega);
   const isAdmin=user?.role==='admin';
+  const EMAILS_PRIOR=['juliana@econstrucao.com.br','producao@econstrucao.com.br','vendas05@econstrucao.com.br'];
+  const canEditPrior=isAdmin||EMAILS_PRIOR.includes(user?.email?.toLowerCase());
   const priorAtual=getPrioridade(pedido.prioridade);
 
   const salvarPrioridade=async(priorId)=>{
@@ -1077,12 +1082,12 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
           e('div',{style:{position:'relative'}},
             e('span',{
               className:'badge',
-              onClick:isAdmin?()=>setShowPriorMenu(v=>!v):undefined,
+              onClick:canEditPrior?()=>setShowPriorMenu(v=>!v):undefined,
               style:{
                 background:priorAtual?priorAtual.bg:'var(--border)',
                 border:`1px solid ${priorAtual?priorAtual.bd:'var(--border2)'}`,
                 color:priorAtual?priorAtual.cor:'var(--muted)',
-                cursor:isAdmin?'pointer':'default',
+                cursor:canEditPrior?'pointer':'default',
                 userSelect:'none',
                 display:'flex',alignItems:'center',gap:4
               }
@@ -1090,7 +1095,7 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
               priorAtual?`${priorAtual.icon} ${priorAtual.lbl}`:'⚪ Sem prioridade',
               isAdmin&&e('span',{style:{fontSize:9,opacity:.6,marginLeft:2}},'▾')
             ),
-            showPriorMenu&&e('div',{style:{position:'absolute',top:'110%',left:0,zIndex:999,background:'var(--card)',border:'1px solid var(--border2)',borderRadius:10,boxShadow:'0 8px 24px #0008',minWidth:160,padding:6}},
+            showPriorMenu&&canEditPrior&&e('div',{style:{position:'absolute',top:'110%',left:0,zIndex:999,background:'var(--card)',border:'1px solid var(--border2)',borderRadius:10,boxShadow:'0 8px 24px #0008',minWidth:160,padding:6}},
               PRIORIDADES.map(pr=>e('div',{
                 key:pr.id,
                 onClick:()=>salvarPrioridade(pr.id),
