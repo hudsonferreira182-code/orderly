@@ -152,7 +152,8 @@ const db={
     const row={id:p.id,nf:p.nf||'',cliente:p.cliente,data_pedido:p.dataPedido||null,entrega:p.entrega,
       vendedor:p.vendedor||'',etapa:p.etapa,ultima_at:p.ultimaAt,obs:p.obs||'',
       produto:p.produto||'',quantidade:p.quantidade||'',area_entrega:p.areaEntrega||'',
-      foto_pedido:p.fotoPedido||null,foto_producao:p.fotoP||null,foto_entrega:p.fotoE||null,historico:p.hist||[]};
+      foto_pedido:p.fotoPedido||null,foto_producao:p.fotoP||null,foto_entrega:p.fotoE||null,historico:p.hist||[],
+      prioridade:p.prioridade||null};
     await sb.from('pedidos').upsert(row,{onConflict:'id'});
   },
   // FOTOS — upload para storage, retorna URL pública
@@ -177,7 +178,8 @@ function rowToApp(r){
     ultimaAt:r.ultima_at||r.entrega,obs:r.obs||'',
     produto:r.produto||'',quantidade:r.quantidade||'',areaEntrega:r.area_entrega||'',
     hist:Array.isArray(r.historico)?r.historico:[],
-    fotoPedido:r.foto_pedido||null,fotoP:r.foto_producao||null,fotoE:r.foto_entrega||null
+    fotoPedido:r.foto_pedido||null,fotoP:r.foto_producao||null,fotoE:r.foto_entrega||null,
+    prioridade:r.prioridade||null
   };
 }
 
@@ -640,7 +642,7 @@ function Dashboard({pedidos,onAbrir,user}){
   const perf=pedidos.length?Math.round(((listEntregues.length+listNoPrazo.length)/pedidos.length)*100):0;
   const pipeline=[
     {nome:'Recebido',val:pedidos.filter(p=>p.etapa==='Recebido').length,cor:'var(--blue)'},
-    {nome:'Produção',val:pedidos.filter(p=>p.etapa==='Produção').length,cor:'var(--accent2)'},
+    {nome:'Separado',val:pedidos.filter(p=>p.etapa==='Separado').length,cor:'var(--accent2)'},
     {nome:'Expedição',val:pedidos.filter(p=>p.etapa==='Expedição').length,cor:'var(--yellow)'},
     {nome:'Entregue',val:listEntregues.length,cor:'var(--green)'},
   ];
@@ -878,10 +880,10 @@ function Pedidos({pedidos,setPedidos,user,onAbrir,onNovo}){
   const isAdmin=user.role==='admin';
   const [filtro,setFiltro]=useState('todos');
   const [vendFiltro,setVendFiltro]=useState('todos');
-  const FLT=[{id:'todos',lbl:'Todos'},{id:'atrasado',lbl:'Atrasados'},{id:'atencao',lbl:'Atenção'},{id:'proximo',lbl:'Próximos'},{id:'producao',lbl:'Produção'},{id:'confirmado',lbl:'Entregues'}];
+  const FLT=[{id:'todos',lbl:'Todos'},{id:'atrasado',lbl:'Atrasados'},{id:'atencao',lbl:'Atenção'},{id:'proximo',lbl:'Próximos'},{id:'producao',lbl:'Separado'},{id:'confirmado',lbl:'Entregues'}];
   const vendedores=[...new Set(pedidos.map(p=>p.vendedor).filter(Boolean))].sort();
   const lista=pedidos.filter(p=>{
-    const okStatus=filtro==='todos'?true:filtro==='producao'?p.etapa==='Produção':calcStatus(p)===filtro;
+    const okStatus=filtro==='todos'?true:filtro==='producao'?p.etapa==='Separado':calcStatus(p)===filtro;
     const okVend=vendFiltro==='todos'||p.vendedor===vendFiltro;
     return okStatus&&okVend;
   }).sort((a,b)=>new Date(a.entrega)-new Date(b.entrega));
@@ -975,13 +977,33 @@ function CardPed({p,onClick,isAdmin=true}){
 }
 
 // ── MODAL PEDIDO ──────────────────────────────────────
+const PRIORIDADES=[
+  {id:'muito_critico', lbl:'Muito Crítico', cor:'#f43f5e', bg:'#f43f5e18', bd:'#f43f5e40', icon:'🔴'},
+  {id:'critico',       lbl:'Crítico',       cor:'#fb923c', bg:'#fb923c18', bd:'#fb923c40', icon:'🟠'},
+  {id:'ideal',         lbl:'Ideal',         cor:'#3b82f6', bg:'#3b82f618', bd:'#3b82f640', icon:'🔵'},
+  {id:'sem_riscos',    lbl:'Sem Riscos',    cor:'#22c55e', bg:'#22c55e18', bd:'#22c55e40', icon:'🟢'},
+  {id:'adiantado',     lbl:'Adiantado',     cor:'#a855f7', bg:'#a855f718', bd:'#a855f740', icon:'🟣'},
+];
+function getPrioridade(id){return PRIORIDADES.find(p=>p.id===id)||null;}
+
 function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
   const fileRef=useRef();const [fotoTipo,setFotoTipo]=useState(null);
   const [obsEdit,setObsEdit]=useState(false);
   const [obsVal,setObsVal]=useState(pedido?pedido.obs||'':'');
+  const [showPriorMenu,setShowPriorMenu]=useState(false);
   if(!pedido)return null;
   const s=calcStatus(pedido);const etq=etqDias(pedido.entrega);
-  const ETAPAS=['Recebido','Produção','Expedição','Entregue'];
+  const isAdmin=user?.role==='admin';
+  const priorAtual=getPrioridade(pedido.prioridade);
+
+  const salvarPrioridade=async(priorId)=>{
+    const pAtual=getPrioridade(priorId);
+    const novo={...pedido,prioridade:priorId,hist:[...pedido.hist,{d:agora(),m:`Prioridade definida: ${pAtual?.lbl||priorId}`,u:user.nome}],ultimaAt:new Date().toISOString().split('T')[0]};
+    setPedidos(ps=>ps.map(p=>p.id===pedido.id?novo:p));
+    await db.savePedido(novo);
+    setShowPriorMenu(false);
+  };
+  const ETAPAS=['Recebido','Separado','Expedição','Entregue'];
   const idx=ETAPAS.indexOf(pedido.etapa);const cor=corS(s);
   // ciclo: dias entre pedido e entrega confirmada (ou hoje)
   const dPedido=pedido.dataPedido?new Date(pedido.dataPedido+'T12:00:00'):null;
@@ -1006,7 +1028,7 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
         const nfVal=prompt('Informe o número da NF para este pedido:','NF-');
         setPedidos(ps=>ps.map(p=>p.id===pedido.id?{...p,fotoE:urlFinal,nf:nfVal&&nfVal.trim()?nfVal.trim():p.nf,hist:[...p.hist,{d:agora(),m:`Foto de entrega anexada${nfVal&&nfVal.trim()?' · NF: '+nfVal.trim():''}`,u:user.nome}],ultimaAt:new Date().toISOString().split('T')[0]}:p));
       } else {
-        setPedidos(ps=>ps.map(p=>p.id===pedido.id?{...p,fotoP:urlFinal,hist:[...p.hist,{d:agora(),m:'Foto de produção anexada',u:user.nome}],ultimaAt:new Date().toISOString().split('T')[0]}:p));
+        setPedidos(ps=>ps.map(p=>p.id===pedido.id?{...p,fotoP:urlFinal,hist:[...p.hist,{d:agora(),m:'Foto de separação anexada',u:user.nome}],ultimaAt:new Date().toISOString().split('T')[0]}:p));
       }
     };
     r.readAsDataURL(f);ev.target.value='';
@@ -1036,9 +1058,34 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
           ),
           e('button',{onClick:onClose,style:{background:'var(--surface)',border:'1px solid var(--border2)',borderRadius:8,padding:'6px',display:'flex',color:'var(--muted)'}},e(Ic.x))
         ),
-        e('div',{style:{display:'flex',gap:7,marginTop:10}},
+        e('div',{style:{display:'flex',gap:7,marginTop:10,flexWrap:'wrap',alignItems:'center'}},
           e('span',{className:'badge',style:{background:bgS(s),border:`1px solid ${bdS(s)}`,color:cor}},lblS(s)),
-          e('span',{className:'badge',style:{background:'var(--border)',color:'var(--muted)'}},pedido.etapa)
+          e('span',{className:'badge',style:{background:'var(--border)',color:'var(--muted)'}},pedido.etapa),
+          // Badge de prioridade
+          e('div',{style:{position:'relative'}},
+            e('span',{
+              className:'badge',
+              onClick:isAdmin?()=>setShowPriorMenu(v=>!v):undefined,
+              style:{
+                background:priorAtual?priorAtual.bg:'var(--border)',
+                border:`1px solid ${priorAtual?priorAtual.bd:'var(--border2)'}`,
+                color:priorAtual?priorAtual.cor:'var(--muted)',
+                cursor:isAdmin?'pointer':'default',
+                userSelect:'none',
+                display:'flex',alignItems:'center',gap:4
+              }
+            },
+              priorAtual?`${priorAtual.icon} ${priorAtual.lbl}`:'⚪ Sem prioridade',
+              isAdmin&&e('span',{style:{fontSize:9,opacity:.6,marginLeft:2}},'▾')
+            ),
+            showPriorMenu&&e('div',{style:{position:'absolute',top:'110%',left:0,zIndex:999,background:'var(--card)',border:'1px solid var(--border2)',borderRadius:10,boxShadow:'0 8px 24px #0008',minWidth:160,padding:6}},
+              PRIORIDADES.map(pr=>e('div',{
+                key:pr.id,
+                onClick:()=>salvarPrioridade(pr.id),
+                style:{padding:'8px 12px',borderRadius:7,cursor:'pointer',display:'flex',alignItems:'center',gap:8,fontSize:12,fontWeight:600,color:pr.cor,background:pedido.prioridade===pr.id?pr.bg:'transparent',transition:'background .15s'}
+              },pr.icon,' ',pr.lbl))
+            )
+          )
         )
       ),
       e('div',{style:{padding:'18px'}},
@@ -1105,7 +1152,7 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
             e('img',{src:pedido.fotoPedido,style:{width:'100%',maxHeight:180,objectFit:'contain',display:'block',background:'#fff'}})
           ),
           e('div',{className:'grid-2'},
-            [['prod','fotoP','Produção'],['ent','fotoE','Entrega']].map(([tipo,fk,lbl])=>
+            [['prod','fotoP','Separado'],['ent','fotoE','Entrega']].map(([tipo,fk,lbl])=>
               e('div',{key:tipo},
                 e('div',{style:{fontSize:11,color:'var(--muted)',marginBottom:5,textAlign:'center'}},lbl),
                 pedido[fk]
@@ -1228,7 +1275,7 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
       vendedor:f.vendedor,produto:f.produto,quantidade:f.quantidade,areaEntrega:f.areaEntrega,
       etapa:f.etapa,ultimaAt:new Date().toISOString().split('T')[0],obs:'',
       hist:[{d:agora(),m:'Pedido criado'+(fotoPedido?' via foto':''),u:user.nome}],
-      fotoPedido:fotoPedido,fotoP:null,fotoE:null
+      fotoPedido:fotoPedido,fotoP:null,fotoE:null,prioridade:null
     };
     await db.savePedido(novoPed).catch(console.error);
     setPedidos(ps=>[...ps,novoPed]);
@@ -1292,7 +1339,7 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
         e('div',{style:{marginBottom:10}},
           e('label',{style:{display:'block',fontSize:10,fontWeight:600,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:5}},'ETAPA'),
           e('select',{className:'form-input',value:f.etapa,onChange:ev=>fld('etapa',ev.target.value),style:{fontSize:13}},
-            ['Recebido','Produção','Expedição'].map(et=>e('option',{key:et,value:et},et))
+            ['Recebido','Separado','Expedição'].map(et=>e('option',{key:et,value:et},et))
           )
         ),
         err&&e('div',{style:{color:'var(--red)',fontSize:12,marginBottom:8}},err),
