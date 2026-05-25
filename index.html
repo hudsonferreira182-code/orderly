@@ -448,7 +448,7 @@ function LoginFlow({users,setUsers,pendentes,setPendentes,onLogin}){
     const er=validaSenha(senha);if(er){setErr(er);return;}
     if(senha!==conf){setErr('Senhas não conferem.');return;}
     try{
-      const novo={email:email.toLowerCase(),senha,nome,funcao,whatsapp,role:'operador',ativo:false};
+      const novo={email:email.toLowerCase(),senha,nome,funcao,whatsapp,role:'operador'};
       const{error}=await sb.from('pendentes').insert(novo).select();
       if(error)throw error;
       setPendentes(p=>[...p,novo]);
