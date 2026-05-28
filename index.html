@@ -843,7 +843,8 @@ function Dashboard({pedidos,onAbrir,user}){
 
 // ── CALENDÁRIO ────────────────────────────────────────
 function Calendario({pedidos,onAbrir}){
-  const [mes,setMes]=useState(4);const [ano,setAno]=useState(2026);
+  const _hoje=new Date();
+  const [mes,setMes]=useState(_hoje.getMonth());const [ano,setAno]=useState(_hoje.getFullYear());
   const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const DIAS=['D','S','T','Q','Q','S','S'];
   const prim=new Date(ano,mes,1).getDay();
