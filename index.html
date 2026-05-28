@@ -153,7 +153,7 @@ const db={
       vendedor:p.vendedor||'',etapa:p.etapa,ultima_at:p.ultimaAt,obs:p.obs||'',
       produto:p.produto||'',quantidade:p.quantidade||'',area_entrega:p.areaEntrega||'',
       foto_pedido:p.fotoPedido||null,foto_producao:p.fotoP||null,foto_entrega:p.fotoE||null,historico:p.hist||[],
-      prioridade:p.prioridade||null};
+      prioridade:p.prioridade||null,tipo:p.tipo||'Venda'};
     await sb.from('pedidos').upsert(row,{onConflict:'id'});
   },
   // FOTOS — upload para storage, retorna URL pública
@@ -179,7 +179,8 @@ function rowToApp(r){
     produto:r.produto||'',quantidade:r.quantidade||'',areaEntrega:r.area_entrega||'',
     hist:Array.isArray(r.historico)?r.historico:[],
     fotoPedido:r.foto_pedido||null,fotoP:r.foto_producao||null,fotoE:r.foto_entrega||null,
-    prioridade:r.prioridade||null
+    prioridade:r.prioridade||null,
+    tipo:r.tipo||'Venda'
   };
 }
 
@@ -960,7 +961,10 @@ function CardPed({p,onClick,isAdmin=true}){
     // Linha 1 — Nº Pedido + status dot
     e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:1}},
       e('span',{style:{fontWeight:700,fontSize:13,fontFamily:'DM Mono, monospace'}},p.id),
-      e('span',{style:{width:7,height:7,borderRadius:99,background:corS(s),display:'block',boxShadow:`0 0 5px ${corS(s)}`}})
+      e('div',{style:{display:'flex',alignItems:'center',gap:5}},
+        p.tipo&&e('span',{style:{fontSize:9,fontWeight:700,padding:'2px 6px',borderRadius:4,background:p.tipo==='Locação'?'#7c3aed22':'#0ea5e922',color:p.tipo==='Locação'?'#a78bfa':'#38bdf8',border:`1px solid ${p.tipo==='Locação'?'#7c3aed44':'#0ea5e944'}`}},p.tipo),
+        e('span',{style:{width:7,height:7,borderRadius:99,background:corS(s),display:'block',boxShadow:`0 0 5px ${corS(s)}`}})
+      )
     ),
     // Linha 2 — Cliente
     e('div',{style:{fontWeight:600,fontSize:13,marginBottom:6,marginTop:4}},p.cliente),
@@ -1087,6 +1091,7 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
         e('div',{style:{display:'flex',gap:7,marginTop:10,flexWrap:'wrap',alignItems:'center'}},
           e('span',{className:'badge',style:{background:bgS(s),border:`1px solid ${bdS(s)}`,color:cor}},lblS(s)),
           e('span',{className:'badge',style:{background:'var(--border)',color:'var(--muted)'}},pedido.etapa),
+          pedido.tipo&&e('span',{className:'badge',style:{background:pedido.tipo==='Locação'?'#7c3aed22':'#0ea5e922',border:`1px solid ${pedido.tipo==='Locação'?'#7c3aed44':'#0ea5e944'}`,color:pedido.tipo==='Locação'?'#a78bfa':'#38bdf8'}},pedido.tipo),
           // Badge de prioridade
           e('div',{style:{position:'relative'}},
             e('span',{
@@ -1217,7 +1222,7 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
 
 // ── MODAL NOVO PEDIDO ─────────────────────────────────
 function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
-  const [f,setF]=useState({cliente:'',dataPedido:'',entrega:'',vendedor:'',produto:'',quantidade:'',areaEntrega:'',etapa:'Recebido'});
+  const [f,setF]=useState({cliente:'',dataPedido:'',entrega:'',vendedor:'',produto:'',quantidade:'',areaEntrega:'',etapa:'Recebido',tipo:'Venda'});
   const [numOCR,setNumOCR]=useState('');
   const [err,setErr]=useState('');
   const [ocrLoad,setOcrLoad]=useState(false);
@@ -1305,7 +1310,7 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
     const idFinal=numOCR?`PED-${numOCR}`:nextId();
     const novoPed={
       id:idFinal,nf:'',cliente:f.cliente,dataPedido:f.dataPedido,entrega:f.entrega,
-      vendedor:limparVendedor(f.vendedor),produto:f.produto,quantidade:f.quantidade,areaEntrega:f.areaEntrega,
+      vendedor:limparVendedor(f.vendedor),produto:f.produto,quantidade:f.quantidade,areaEntrega:f.areaEntrega,tipo:f.tipo||'Venda',
       etapa:f.etapa,ultimaAt:new Date().toISOString().split('T')[0],obs:'',
       hist:[{d:agora(),m:'Pedido criado'+(fotoPedido?' via foto':''),u:user.nome}],
       fotoPedido:fotoPedido,fotoP:null,fotoE:null,prioridade:null
@@ -1366,6 +1371,16 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
         e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
           e(Campo,{lbl:'Vendedor',fk:'vendedor',ph:'Nome do vendedor'}),
           e(Campo,{lbl:'Área de entrega',fk:'areaEntrega',ph:'Município'})
+        ),
+        e('div',{style:{marginBottom:10}},
+          e('label',{style:{display:'block',fontSize:10,fontWeight:600,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:5}},'TIPO'),
+          e('div',{style:{display:'flex',gap:8}},
+            ['Venda','Locação'].map(t=>e('button',{
+              key:t,type:'button',
+              onClick:()=>fld('tipo',t),
+              style:{flex:1,padding:'9px 0',borderRadius:8,border:`1px solid ${f.tipo===t?'var(--accent)':'var(--border2)'}`,background:f.tipo===t?'var(--accent)':'transparent',color:f.tipo===t?'#fff':'var(--muted)',fontWeight:700,fontSize:13,cursor:'pointer',transition:'all .15s'}
+            },t))
+          )
         ),
         e(Campo,{lbl:'Produto/Descrição',fk:'produto',ph:'Descrição do produto'}),
         e(Campo,{lbl:'Quantidade',fk:'quantidade',ph:'Ex: 104 PC'}),
