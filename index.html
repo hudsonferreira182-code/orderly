@@ -846,6 +846,7 @@ function Dashboard({pedidos,onAbrir,user}){
 function Calendario({pedidos,onAbrir}){
   const _hoje=new Date();
   const [mes,setMes]=useState(_hoje.getMonth());const [ano,setAno]=useState(_hoje.getFullYear());
+  const [diaExpand,setDiaExpand]=useState(null);
   const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const DIAS=['D','S','T','Q','Q','S','S'];
   const prim=new Date(ano,mes,1).getDay();
@@ -878,9 +879,9 @@ function Calendario({pedidos,onAbrir}){
       ),
       semanas.map((sem,si)=>e('div',{key:si,style:{display:'grid',gridTemplateColumns:'repeat(7,1fr)',borderBottom:si<semanas.length-1?'1px solid var(--border)':'none'}},
         sem.map((dia,di)=>{
-          const isH=dia===16&&mes===4&&ano===2026;
+          const isH=dia===new Date().getDate()&&mes===new Date().getMonth()&&ano===new Date().getFullYear();
           const ps=dia?pedDia[dia]||[]:[];
-          return e('div',{key:di,className:'cal-cell',style:{borderLeft:di>0?'1px solid var(--border)':'none',background:isH?'#7c6af710':'transparent'}},
+          return e('div',{key:di,className:'cal-cell',style:{borderLeft:di>0?'1px solid var(--border)':'none',background:isH?'#7c6af710':'transparent',position:'relative'}},
             dia&&e(Fragment,{},
               e('div',{style:{display:'inline-flex',width:18,height:18,borderRadius:99,fontSize:11,alignItems:'center',justifyContent:'center',fontWeight:isH?700:400,background:isH?'var(--accent)':'transparent',color:isH?'#fff':'var(--muted)',marginBottom:3}},dia),
               ps.slice(0,1).map(p=>{
@@ -891,7 +892,23 @@ function Calendario({pedidos,onAbrir}){
                   e('div',{style:{color:'var(--muted)',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',marginTop:1,fontWeight:700}},nomeCliente)
                 );
               }),
-              ps.length>1&&e('div',{style:{fontSize:9,color:'var(--muted)',marginTop:1}},`+${ps.length-1}`)
+              ps.length>1&&e('div',{
+                onClick:()=>setDiaExpand(diaExpand===`${ano}-${mes}-${dia}`?null:`${ano}-${mes}-${dia}`),
+                style:{fontSize:9,color:'var(--accent2)',marginTop:2,cursor:'pointer',fontWeight:700}
+              },`+${ps.length-1} mais`),
+              diaExpand===`${ano}-${mes}-${dia}`&&e('div',{
+                style:{position:'absolute',top:'100%',left:0,zIndex:99,background:'var(--card)',border:'1px solid var(--border2)',borderRadius:8,boxShadow:'0 8px 24px #0008',minWidth:160,maxWidth:220,padding:6,display:'flex',flexDirection:'column',gap:4}
+              },
+                e('div',{style:{fontSize:9,color:'var(--muted)',fontWeight:700,textTransform:'uppercase',marginBottom:2,padding:'0 4px'}},`${ps.length} pedidos neste dia`),
+                ps.map(p=>{
+                  const s=calcStatus(p);
+                  const nc=p.cliente.length>24?p.cliente.slice(0,24)+'…':p.cliente;
+                  return e('div',{key:p.id,onClick:()=>{onAbrir(p.id);setDiaExpand(null);},style:{fontSize:10,background:bgS(s),border:`1px solid ${bdS(s)}`,borderLeft:`2px solid ${corS(s)}`,borderRadius:4,padding:'4px 7px',cursor:'pointer',color:corS(s)}},
+                    e('div',{style:{fontWeight:700}}),p.id,
+                    e('div',{style:{color:'var(--muted)',fontSize:9,fontWeight:600,marginTop:1}},nc)
+                  );
+                })
+              )
             )
           );
         })
