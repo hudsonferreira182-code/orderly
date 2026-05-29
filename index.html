@@ -1050,6 +1050,8 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
   const [obsEdit,setObsEdit]=useState(false);
   const [obsVal,setObsVal]=useState(pedido?pedido.obs||'':'');
   const [showPriorMenu,setShowPriorMenu]=useState(false);
+  const [editando,setEditando]=useState(false);
+  const [editF,setEditF]=useState({});
   if(!pedido)return null;
   const s=calcStatus(pedido);const etq=etqDias(pedido.entrega);
   const isAdmin=user?.role==='admin';
@@ -1066,6 +1068,24 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
   };
   const ETAPAS=['Recebido','Separado','Expedição','Entregue'];
   const idx=ETAPAS.indexOf(pedido.etapa);const cor=corS(s);
+
+  const abrirEdicao=()=>{
+    setEditF({
+      cliente:pedido.cliente,dataPedido:pedido.dataPedido,entrega:pedido.entrega,
+      vendedor:pedido.vendedor||'',produto:pedido.produto||'',quantidade:pedido.quantidade||'',
+      areaEntrega:pedido.areaEntrega||'',tipo:pedido.tipo||'Venda'
+    });
+    setEditando(true);
+  };
+
+  const salvarEdicao=async()=>{
+    const novo={...pedido,...editF,vendedor:limparVendedor(editF.vendedor),
+      hist:[...pedido.hist,{d:agora(),m:'Pedido editado',u:user.nome}],
+      ultimaAt:new Date().toISOString().split('T')[0]};
+    setPedidos(ps=>ps.map(p=>p.id===pedido.id?novo:p));
+    await db.savePedido(novo);
+    setEditando(false);
+  };
   // ciclo: dias entre pedido e entrega confirmada (ou hoje)
   const dPedido=pedido.dataPedido?new Date(pedido.dataPedido+'T12:00:00'):null;
   const dEntrega=pedido.etapa==='Entregue'?new Date(pedido.ultimaAt+'T12:00:00'):HOJE;
@@ -1112,6 +1132,37 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
 
   return e('div',{className:'modal-overlay',onClick:ev=>{if(ev.target===ev.currentTarget)onClose();}},
     e('input',{type:'file',accept:'image/*',ref:fileRef,style:{display:'none'},onChange:onFile}),
+    editando&&e('div',{className:'modal-overlay',style:{zIndex:400},onClick:ev=>{if(ev.target===ev.currentTarget)setEditando(false);}},
+      e('div',{className:'modal-box',style:{maxHeight:'90vh',overflowY:'auto'}},
+        e('div',{style:{padding:'16px 18px',borderBottom:'1px solid var(--border)',display:'flex',justifyContent:'space-between',alignItems:'center'}},
+          e('span',{style:{fontWeight:700,fontSize:16}},'Editar Pedido'),
+          e('button',{onClick:()=>setEditando(false),style:{background:'var(--surface)',border:'1px solid var(--border2)',borderRadius:7,padding:'6px',display:'flex',color:'var(--muted)'}},e(Ic.x))
+        ),
+        e('div',{style:{padding:'16px 18px',display:'flex',flexDirection:'column',gap:10}},
+          e('div',null,e('label',{style:{display:'block',fontSize:10,fontWeight:600,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:5}},'Cliente'),e('input',{className:'form-input',value:editF.cliente||'',onChange:ev=>setEditF(p=>({...p,cliente:ev.target.value}))})),
+          e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
+            e('div',null,e('label',{style:{display:'block',fontSize:10,fontWeight:600,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:5}},'Data Pedido'),e('input',{className:'form-input',type:'date',value:editF.dataPedido||'',onChange:ev=>setEditF(p=>({...p,dataPedido:ev.target.value}))})),
+            e('div',null,e('label',{style:{display:'block',fontSize:10,fontWeight:600,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:5}},'Data Entrega'),e('input',{className:'form-input',type:'date',value:editF.entrega||'',onChange:ev=>setEditF(p=>({...p,entrega:ev.target.value}))}))
+          ),
+          e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
+            e('div',null,e('label',{style:{display:'block',fontSize:10,fontWeight:600,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:5}},'Vendedor'),e('input',{className:'form-input',value:editF.vendedor||'',onChange:ev=>setEditF(p=>({...p,vendedor:ev.target.value}))})),
+            e('div',null,e('label',{style:{display:'block',fontSize:10,fontWeight:600,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:5}},'Área de Entrega'),e('input',{className:'form-input',value:editF.areaEntrega||'',onChange:ev=>setEditF(p=>({...p,areaEntrega:ev.target.value}))}))
+          ),
+          e('div',null,e('label',{style:{display:'block',fontSize:10,fontWeight:600,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:5}},'Produto/Descrição'),e('input',{className:'form-input',value:editF.produto||'',onChange:ev=>setEditF(p=>({...p,produto:ev.target.value}))})),
+          e('div',null,e('label',{style:{display:'block',fontSize:10,fontWeight:600,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:5}},'Quantidade'),e('input',{className:'form-input',value:editF.quantidade||'',onChange:ev=>setEditF(p=>({...p,quantidade:ev.target.value}))})),
+          e('div',null,
+            e('label',{style:{display:'block',fontSize:10,fontWeight:600,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:5}},'Tipo'),
+            e('div',{style:{display:'flex',gap:8}},
+              ['Venda','Locação'].map(t=>e('button',{key:t,type:'button',onClick:()=>setEditF(p=>({...p,tipo:t})),style:{flex:1,padding:'9px 0',borderRadius:8,border:`1px solid ${editF.tipo===t?'var(--accent)':'var(--border2)'}`,background:editF.tipo===t?'var(--accent)':'transparent',color:editF.tipo===t?'#fff':'var(--muted)',fontWeight:700,fontSize:13,cursor:'pointer'}},t))
+            )
+          ),
+          e('div',{style:{display:'flex',gap:8,marginTop:4}},
+            e('button',{className:'btn-secondary',onClick:()=>setEditando(false),style:{flex:1}},'Cancelar'),
+            e('button',{className:'btn-primary',onClick:salvarEdicao,style:{flex:1}},'Salvar')
+          )
+        )
+      )
+    ),
     e('div',{className:'modal-box'},
       e('div',{style:{padding:'18px 18px 14px',borderBottom:'1px solid var(--border)',background:`linear-gradient(135deg,${cor}10,transparent)`}},
         e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}},
@@ -1125,7 +1176,10 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
             pedido.areaEntrega&&e('div',{style:{color:'var(--muted)',fontSize:12}},'📍 '+pedido.areaEntrega),
             pedido.produto&&e(ProdutoTabela,{produto:pedido.produto,quantidade:pedido.quantidade,style:{marginTop:4}})
           ),
-          e('button',{onClick:onClose,style:{background:'var(--surface)',border:'1px solid var(--border2)',borderRadius:8,padding:'6px',display:'flex',color:'var(--muted)'}},e(Ic.x))
+          e('div',{style:{display:'flex',gap:6}},
+            e('button',{onClick:abrirEdicao,style:{background:'var(--surface)',border:'1px solid var(--border2)',borderRadius:8,padding:'6px 10px',display:'flex',alignItems:'center',gap:4,color:'var(--muted)',fontSize:12,fontWeight:600}},'✏️'),
+            e('button',{onClick:onClose,style:{background:'var(--surface)',border:'1px solid var(--border2)',borderRadius:8,padding:'6px',display:'flex',color:'var(--muted)'}},e(Ic.x))
+          )
         ),
         e('div',{style:{display:'flex',gap:7,marginTop:10,flexWrap:'wrap',alignItems:'center'}},
           e('span',{className:'badge',style:{background:bgS(s),border:`1px solid ${bdS(s)}`,color:cor}},lblS(s)),
