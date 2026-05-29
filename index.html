@@ -1391,6 +1391,19 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
                     )
               )
         ),
+        e('div',{style:{marginBottom:10}},
+          e('label',{style:{display:'block',fontSize:10,fontWeight:600,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:5}},'Nº DO PEDIDO'),
+          e('div',{style:{position:'relative'}},
+            e('span',{style:{position:'absolute',left:10,top:'50%',transform:'translateY(-50%)',fontSize:12,fontWeight:700,color:'var(--muted)',pointerEvents:'none'}},'PED-'),
+            e('input',{
+              className:'form-input',
+              value:numOCR,
+              onChange:ev=>setNumOCR(ev.target.value.replace(/^PED-/,'')),
+              placeholder:'Ex: 1707-0',
+              style:{paddingLeft:42,fontFamily:'DM Mono, monospace',fontWeight:700}
+            })
+          )
+        ),
         e(Campo,{lbl:'Cliente',fk:'cliente',ph:'Nome do cliente'}),
         e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}},
           e(Campo,{lbl:'Data do pedido',fk:'dataPedido',type:'date'}),
