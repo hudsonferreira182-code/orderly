@@ -658,18 +658,23 @@ function Shell({user,pedidos,setPedidos,users,setUsers,pendentes,setPendentes,pa
 // ── DASHBOARD ─────────────────────────────────────────
 function Dashboard({pedidos,onAbrir,user}){
   const isAdminDash=user&&user.role==='admin';
+  const EMAILS_FULL=['juliana@econstrucao.com.br','producao@econstrucao.com.br','vendas05@econstrucao.com.br'];
+  const canVerTodosDash=EMAILS_FULL.includes(user?.email?.toLowerCase());
   const hoje=new Date();
-  const [expanded,setExpanded]=useState(null); // 'atrasados'|'risco'|'entregues'|null
-  const ativos=pedidos.filter(p=>p.etapa!=='Entregue');
-  const listEntregues=[...pedidos.filter(p=>p.etapa==='Entregue')].sort((a,b)=>new Date(b.ultimaAt)-new Date(a.ultimaAt));
+  const [expanded,setExpanded]=useState(null);
+  const [vendDash,setVendDash]=useState('todos');
+  const vendedores=[...new Set(pedidos.map(p=>p.vendedor).filter(Boolean))].sort();
+  const pedFiltrados=vendDash==='todos'?pedidos:pedidos.filter(p=>p.vendedor===vendDash);
+  const ativos=pedFiltrados.filter(p=>p.etapa!=='Entregue');
+  const listEntregues=[...pedFiltrados.filter(p=>p.etapa==='Entregue')].sort((a,b)=>new Date(b.ultimaAt)-new Date(a.ultimaAt));
   const listAtrasados=[...ativos.filter(p=>calcStatus(p)==='atrasado')].sort((a,b)=>diasDiff(a.entrega)-diasDiff(b.entrega));
   const listRisco=[...ativos.filter(p=>calcStatus(p)==='atencao')].sort((a,b)=>diasDiff(a.entrega)-diasDiff(b.entrega));
   const listNoPrazo=ativos.filter(p=>calcStatus(p)==='proximo');
-  const perf=pedidos.length?Math.round(((listEntregues.length+listNoPrazo.length)/pedidos.length)*100):0;
+  const perf=pedFiltrados.length?Math.round(((listEntregues.length+listNoPrazo.length)/pedFiltrados.length)*100):0;
   const pipeline=[
-    {nome:'Recebido',val:pedidos.filter(p=>p.etapa==='Recebido').length,cor:'var(--blue)'},
-    {nome:'Separado',val:pedidos.filter(p=>p.etapa==='Separado').length,cor:'var(--accent2)'},
-    {nome:'Expedição',val:pedidos.filter(p=>p.etapa==='Expedição').length,cor:'var(--yellow)'},
+    {nome:'Recebido',val:pedFiltrados.filter(p=>p.etapa==='Recebido').length,cor:'var(--blue)'},
+    {nome:'Separado',val:pedFiltrados.filter(p=>p.etapa==='Separado').length,cor:'var(--accent2)'},
+    {nome:'Expedição',val:pedFiltrados.filter(p=>p.etapa==='Expedição').length,cor:'var(--yellow)'},
     {nome:'Entregue',val:listEntregues.length,cor:'var(--green)'},
   ];
   const maxP=Math.max(...pipeline.map(x=>x.val),1);
@@ -743,9 +748,13 @@ function Dashboard({pedidos,onAbrir,user}){
 
   return e('div',{className:'fade-up'},
     e('div',{className:'page-label'},'VISÃO EXECUTIVA'),
-    e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}},
+    e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:canVerTodosDash&&vendedores.length>0?10:18}},
       e('h1',{className:'page-title'},'Dashboard'),
       e('div',{style:{fontSize:11,color:'var(--muted)',background:'var(--card)',border:'1px solid var(--border2)',borderRadius:7,padding:'4px 10px'}},hoje.toLocaleDateString('pt-BR'))
+    ),
+    canVerTodosDash&&vendedores.length>0&&e('div',{className:'filters-row',style:{marginBottom:16}},
+      e('button',{className:`filter-btn${vendDash==='todos'?' active':''}`,onClick:()=>setVendDash('todos')},'👥 Todos'),
+      vendedores.map(v=>e('button',{key:v,className:`filter-btn${vendDash===v?' active':''}`,onClick:()=>setVendDash(v)},v))
     ),
 
     // ── KPIs clicáveis ──
@@ -944,12 +953,16 @@ function Pedidos({pedidos,setPedidos,user,onAbrir,onNovo}){
   const POR_PAG=20;
   const FLT=[{id:'todos',lbl:'Todos'},{id:'atrasado',lbl:'Atrasados'},{id:'atencao',lbl:'Atenção'},{id:'proximo',lbl:'Próximos'},{id:'producao',lbl:'Separado'},{id:'confirmado',lbl:'Entregues'}];
   const vendedores=[...new Set(pedidos.map(p=>p.vendedor).filter(Boolean))].sort();
+  const [tipoFiltro,setTipoFiltro]=useState('todos');
+  const [priorFiltro,setPriorFiltro]=useState('todos');
   const lista=pedidos.filter(p=>{
     const okStatus=filtro==='todos'?true:filtro==='producao'?p.etapa==='Separado':calcStatus(p)===filtro;
     const okVend=vendFiltro==='todos'||p.vendedor===vendFiltro;
+    const okTipo=tipoFiltro==='todos'||(p.tipo||'Venda')===tipoFiltro;
+    const okPrior=priorFiltro==='todos'||(p.prioridade||'')===priorFiltro;
     const q=busca.toLowerCase();
     const okBusca=!q||p.id.toLowerCase().includes(q)||p.cliente.toLowerCase().includes(q)||(p.vendedor||'').toLowerCase().includes(q)||(p.areaEntrega||'').toLowerCase().includes(q);
-    return okStatus&&okVend&&okBusca;
+    return okStatus&&okVend&&okTipo&&okPrior&&okBusca;
   }).sort((a,b)=>new Date(a.entrega)-new Date(b.entrega));
   const totalPag=Math.ceil(lista.length/POR_PAG);
   const listaPag=lista.slice((pagina-1)*POR_PAG,pagina*POR_PAG);
@@ -968,9 +981,18 @@ function Pedidos({pedidos,setPedidos,user,onAbrir,onNovo}){
     e('div',{className:'filters-row',style:{marginBottom:8}},
       FLT.map(f=>e('button',{key:f.id,className:`filter-btn${filtro===f.id?' active':''}`,onClick:()=>mudarFiltro(f.id,setFiltro)},f.lbl))
     ),
-    isAdmin&&e('div',{className:'filters-row',style:{marginBottom:14}},
+    isAdmin&&e('div',{className:'filters-row',style:{marginBottom:8}},
       e('button',{className:`filter-btn${vendFiltro==='todos'?' active':''}`,onClick:()=>mudarFiltro('todos',setVendFiltro)},'👤 Todos'),
       vendedores.map(v=>e('button',{key:v,className:`filter-btn${vendFiltro===v?' active':''}`,onClick:()=>mudarFiltro(v,setVendFiltro)},v))
+    ),
+    e('div',{className:'filters-row',style:{marginBottom:8}},
+      e('button',{className:`filter-btn${tipoFiltro==='todos'?' active':''}`,onClick:()=>mudarFiltro('todos',setTipoFiltro)},'Tipo: Todos'),
+      e('button',{className:`filter-btn${tipoFiltro==='Venda'?' active':''}`,onClick:()=>mudarFiltro('Venda',setTipoFiltro)},'🔵 Venda'),
+      e('button',{className:`filter-btn${tipoFiltro==='Locação'?' active':''}`,onClick:()=>mudarFiltro('Locação',setTipoFiltro)},'🟣 Locação')
+    ),
+    e('div',{className:'filters-row',style:{marginBottom:14}},
+      e('button',{className:`filter-btn${priorFiltro==='todos'?' active':''}`,onClick:()=>mudarFiltro('todos',setPriorFiltro)},'Prior: Todos'),
+      PRIORIDADES.map(pr=>e('button',{key:pr.id,className:`filter-btn${priorFiltro===pr.id?' active':''}`,onClick:()=>mudarFiltro(pr.id,setPriorFiltro),style:priorFiltro===pr.id?{borderColor:pr.cor,color:pr.cor}:{}},pr.icon+' '+pr.lbl))
     ),
     lista.length>0&&e('div',{style:{fontSize:11,color:'var(--muted)',marginBottom:10}}),
     e('div',{className:'grid-3'},listaPag.map(p=>e(CardPed,{key:p.id,p,isAdmin,onClick:()=>onAbrir(p.id)}))),
@@ -1737,11 +1759,29 @@ function Relatorio({pedidos,user}){
   const isAdmin=user&&user.role==='admin';
   const [periodo,setPeriodo]=useState('mes');
   const [vendFiltro,setVendFiltro]=useState('todos');
+  const [dataIni,setDataIni]=useState('');
+  const [dataFim,setDataFim]=useState('');
   const vendedores=[...new Set(pedidos.map(p=>p.vendedor).filter(Boolean))].sort();
+
+  const hoje=new Date();
+  const filtrarPorPeriodo=(p)=>{
+    if(periodo==='custom'){
+      if(!dataIni&&!dataFim)return true;
+      const d=new Date((p.entrega||p.dataPedido)+'T12:00:00');
+      if(dataIni&&d<new Date(dataIni+'T00:00:00'))return false;
+      if(dataFim&&d>new Date(dataFim+'T23:59:59'))return false;
+      return true;
+    }
+    const ref=new Date((p.entrega||p.dataPedido)+'T12:00:00');
+    if(periodo==='semana'){const s=new Date(hoje);s.setDate(s.getDate()-7);return ref>=s;}
+    if(periodo==='mes'){const m=new Date(hoje);m.setDate(1);return ref>=m;}
+    if(periodo==='trimestre'){const t=new Date(hoje);t.setMonth(t.getMonth()-3);return ref>=t;}
+    return true;
+  };
 
   const filtrados=pedidos.filter(p=>{
     const okV=vendFiltro==='todos'||p.vendedor===vendFiltro;
-    return okV;
+    return okV&&filtrarPorPeriodo(p);
   });
 
   const entregues=filtrados.filter(p=>p.etapa==='Entregue');
@@ -1787,9 +1827,25 @@ function Relatorio({pedidos,user}){
       )
     ),
     // Filtro vendedor — só admins
-    isAdmin&&e('div',{className:'filters-row',style:{marginBottom:16}},
+    isAdmin&&e('div',{className:'filters-row',style:{marginBottom:8}},
       e('button',{className:`filter-btn${vendFiltro==='todos'?' active':''}`,onClick:()=>setVendFiltro('todos')},'👤 Todos'),
       vendedores.map(v=>e('button',{key:v,className:`filter-btn${vendFiltro===v?' active':''}`,onClick:()=>setVendFiltro(v)},v))
+    ),
+    // Filtro período
+    e('div',{className:'filters-row',style:{marginBottom:8}},
+      [{id:'semana',lbl:'Esta semana'},{id:'mes',lbl:'Este mês'},{id:'trimestre',lbl:'Trimestre'},{id:'tudo',lbl:'Tudo'},{id:'custom',lbl:'Personalizado'}].map(p=>
+        e('button',{key:p.id,className:`filter-btn${periodo===p.id?' active':''}`,onClick:()=>setPeriodo(p.id)},p.lbl)
+      )
+    ),
+    periodo==='custom'&&e('div',{style:{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:12}},
+      e('div',null,
+        e('label',{style:{display:'block',fontSize:10,fontWeight:600,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:5}},'De'),
+        e('input',{type:'date',className:'form-input',value:dataIni,onChange:ev=>setDataIni(ev.target.value)})
+      ),
+      e('div',null,
+        e('label',{style:{display:'block',fontSize:10,fontWeight:600,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:5}},'Até'),
+        e('input',{type:'date',className:'form-input',value:dataFim,onChange:ev=>setDataFim(ev.target.value)})
+      )
     ),
     // KPIs
     e('div',{style:{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:10,marginBottom:14}},
