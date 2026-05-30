@@ -1091,8 +1091,10 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
   const dEntrega=pedido.etapa==='Entregue'?new Date(pedido.ultimaAt+'T12:00:00'):HOJE;
   const ciclo=dPedido?Math.max(0,Math.round((dEntrega-dPedido)/86400000)):null;
 
-  const salvarObs=()=>{
-    setPedidos(ps=>ps.map(p=>p.id===pedido.id?{...p,obs:obsVal,hist:[...p.hist,{d:agora(),m:'Observação atualizada',u:user.nome}],ultimaAt:new Date().toISOString().split('T')[0]}:p));
+  const salvarObs=async()=>{
+    const novo={...pedido,obs:obsVal,hist:[...pedido.hist,{d:agora(),m:'Observação atualizada',u:user.nome}],ultimaAt:new Date().toISOString().split('T')[0]};
+    setPedidos(ps=>ps.map(p=>p.id===pedido.id?novo:p));
+    await db.savePedido(novo);
     setObsEdit(false);
   };
   const upFoto=(tipo)=>{setFotoTipo(tipo);fileRef.current.click();};
@@ -1107,19 +1109,33 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
       }catch(err){console.error('Upload foto falhou, usando local:',err);}
       if(fotoTipo==='ent'){
         const nfVal=prompt('Informe o número da NF para este pedido:','NF-');
-        setPedidos(ps=>ps.map(p=>p.id===pedido.id?{...p,fotoE:urlFinal,nf:nfVal&&nfVal.trim()?nfVal.trim():p.nf,hist:[...p.hist,{d:agora(),m:`Foto de entrega anexada${nfVal&&nfVal.trim()?' · NF: '+nfVal.trim():''}`,u:user.nome}],ultimaAt:new Date().toISOString().split('T')[0]}:p));
+        setPedidos(ps=>ps.map(p=>{
+          if(p.id!==pedido.id)return p;
+          const novo={...p,fotoE:urlFinal,nf:nfVal&&nfVal.trim()?nfVal.trim():p.nf,hist:[...p.hist,{d:agora(),m:`Foto de entrega anexada${nfVal&&nfVal.trim()?' · NF: '+nfVal.trim():''}`,u:user.nome}],ultimaAt:new Date().toISOString().split('T')[0]};
+          db.savePedido(novo).catch(console.error);
+          return novo;
+        }));
       } else {
-        setPedidos(ps=>ps.map(p=>p.id===pedido.id?{...p,fotoP:urlFinal,hist:[...p.hist,{d:agora(),m:'Foto de separação anexada',u:user.nome}],ultimaAt:new Date().toISOString().split('T')[0]}:p));
+        setPedidos(ps=>ps.map(p=>{
+          if(p.id!==pedido.id)return p;
+          const novo={...p,fotoP:urlFinal,hist:[...p.hist,{d:agora(),m:'Foto de separação anexada',u:user.nome}],ultimaAt:new Date().toISOString().split('T')[0]};
+          db.savePedido(novo).catch(console.error);
+          return novo;
+        }));
       }
     };
     r.readAsDataURL(f);ev.target.value='';
   };
-  const confirmar=()=>{
-    setPedidos(ps=>ps.map(p=>p.id===pedido.id?{...p,etapa:'Entregue',hist:[...p.hist,{d:agora(),m:'Entrega confirmada ✓',u:user.nome}],ultimaAt:new Date().toISOString().split('T')[0]}:p));
+  const confirmar=async()=>{
+    const novo={...pedido,etapa:'Entregue',hist:[...pedido.hist,{d:agora(),m:'Entrega confirmada ✓',u:user.nome}],ultimaAt:new Date().toISOString().split('T')[0]};
+    setPedidos(ps=>ps.map(p=>p.id===pedido.id?novo:p));
+    await db.savePedido(novo);
     onClose();
   };
-  const marcarRisco=()=>{
-    setPedidos(ps=>ps.map(p=>p.id===pedido.id?{...p,hist:[...p.hist,{d:agora(),m:'Marcado em risco',u:user.nome}],ultimaAt:new Date().toISOString().split('T')[0]}:p));
+  const marcarRisco=async()=>{
+    const novo={...pedido,hist:[...pedido.hist,{d:agora(),m:'Marcado em risco',u:user.nome}],ultimaAt:new Date().toISOString().split('T')[0]};
+    setPedidos(ps=>ps.map(p=>p.id===pedido.id?novo:p));
+    await db.savePedido(novo);
   };
   const ETAPAS_SEQ=['Recebido','Separado','Expedição','Entregue'];
   const proxEtapa=ETAPAS_SEQ[ETAPAS_SEQ.indexOf(pedido.etapa)+1]||null;
