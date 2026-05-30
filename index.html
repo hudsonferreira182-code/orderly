@@ -188,9 +188,9 @@ function rowToApp(r){
 const HOJE=new Date();
 const PEDIDOS_INIT=[]
 const USERS_INIT=[
-  {email:'juliana@econstrucao.com.br',senha:'Admin123',nome:'Juliana',funcao:'Gerente Comercial',whatsapp:'(11) 99999-0001',role:'admin',ativo:true},
-  {email:'producao@econstrucao.com.br',senha:'Admin123',nome:'Produção',funcao:'Supervisor de Produção',whatsapp:'(11) 99999-0002',role:'admin',ativo:true},
-  {email:'hudson@econstrucao.com.br',senha:'Hudson123',nome:'Hudson',funcao:'Gerente de PCP',whatsapp:'(11) 99999-0003',role:'operador',ativo:true},
+  {email:'juliana@econstrucao.com.br',senha:'HASH_PENDENTE',nome:'Juliana',funcao:'Gerente Comercial',whatsapp:'(11) 99999-0001',role:'admin',ativo:true},
+  {email:'producao@econstrucao.com.br',senha:'HASH_PENDENTE',nome:'Produção',funcao:'Supervisor de Produção',whatsapp:'(11) 99999-0002',role:'admin',ativo:true},
+  {email:'hudson@econstrucao.com.br',senha:'HASH_PENDENTE',nome:'Hudson',funcao:'Gerente de PCP',whatsapp:'(11) 99999-0003',role:'operador',ativo:true},
 ];
 
 // ── UTILS ─────────────────────────────────────────────
@@ -212,6 +212,11 @@ const etqDias=entrega=>{
 };
 const fmtD=s=>{if(!s)return'';const d=new Date(s+'T12:00:00');return`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}`;};
 const agora=()=>new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+// Hash SHA-256 via Web Crypto API
+const hashSenha=async(senha)=>{
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(senha));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+};
 // Remove prefixo numérico do vendedor: "6 - ANDRE" → "Andre", "2 - Michell Dias" → "Michell Dias"
 const limparVendedor=v=>{
   if(!v)return v;
@@ -379,7 +384,7 @@ function App(){
   };
 
   if(!user)return e(LoginFlow,{users,setUsers,pendentes,setPendentes,onLogin:(u)=>{
-    try{localStorage.setItem('orderly_session',JSON.stringify({email:u.email,senha:u.senha}));}catch(ex){}
+    try{localStorage.setItem('orderly_session',JSON.stringify({email:u.email,senha:u.senha}));}catch(ex){} // senha já é hash
     setUser(u);setPag('dashboard');
   }});
   return e(Shell,{user,pedidos,setPedidos:setPedidosDB,users,setUsers,pendentes,setPendentes,pag,setPag,alertCfg,setAlertCfg,notifs,setNotifs,onLogout:()=>{
@@ -432,19 +437,22 @@ function LoginFlow({users,setUsers,pendentes,setPendentes,onLogin}){
       // Tentar pelo Supabase primeiro
       const{data,error}=await sb.from('usuarios').select('*').eq('email',email.trim().toLowerCase()).maybeSingle();
       if(!error&&data){
-        if(data.senha!==senha){setErr('E-mail ou senha incorretos.');return;}
+        const hLogin=await hashSenha(senha);
+        if(data.senha!==hLogin){setErr('E-mail ou senha incorretos.');return;}
         if(!data.ativo){setErr('Conta aguardando aprovação de um administrador.');return;}
         onLogin(data);return;
       }
       // Fallback: tentar dados locais
-      const u=users.find(x=>x.email===email.trim().toLowerCase()&&x.senha===senha);
+      const hFb=await hashSenha(senha);
+      const u=users.find(x=>x.email===email.trim().toLowerCase()&&x.senha===hFb);
       if(!u){setErr('E-mail ou senha incorretos.');return;}
       if(!u.ativo){setErr('Conta aguardando aprovação.');return;}
       onLogin(u);
     }catch(ex){
       console.error('Login erro:',ex);
       // Fallback: dados locais
-      const u=users.find(x=>x.email===email.trim().toLowerCase()&&x.senha===senha);
+      const hCatch=await hashSenha(senha);
+      const u=users.find(x=>x.email===email.trim().toLowerCase()&&x.senha===hCatch);
       if(!u){setErr('E-mail ou senha incorretos.');return;}
       if(!u.ativo){setErr('Conta aguardando aprovação.');return;}
       onLogin(u);
@@ -460,7 +468,8 @@ function LoginFlow({users,setUsers,pendentes,setPendentes,onLogin}){
     const er=validaSenha(senha);if(er){setErr(er);return;}
     if(senha!==conf){setErr('Senhas não conferem.');return;}
     try{
-      const novo={email:email.toLowerCase(),senha,nome,funcao,whatsapp,role:'operador'};
+      const hCad=await hashSenha(senha);
+      const novo={email:email.toLowerCase(),senha:hCad,nome,funcao,whatsapp,role:'operador'};
       const{error}=await sb.from('pendentes').insert(novo).select();
       if(error)throw error;
       setPendentes(p=>[...p,novo]);
@@ -479,8 +488,9 @@ function LoginFlow({users,setUsers,pendentes,setPendentes,onLogin}){
     const er=validaSenha(novaSenha);if(er){setErr(er);return;}
     if(novaSenha!==novaConf){setErr('Senhas não conferem.');return;}
     try{
-      await db.updateUser(emailR.toLowerCase(),{senha:novaSenha});
-      setUsers(u=>u.map(x=>x.email===emailR.toLowerCase()?{...x,senha:novaSenha}:x));
+      const hReset=await hashSenha(novaSenha);
+      await db.updateUser(emailR.toLowerCase(),{senha:hReset});
+      setUsers(u=>u.map(x=>x.email===emailR.toLowerCase()?{...x,senha:hReset}:x));
       setMsg('Senha alterada! Faça login.');setTela('login');setEmail(emailR);
     }catch{setErr('Erro ao salvar. Tente novamente.');}
   };
@@ -1697,12 +1707,14 @@ function Config({alertCfg,setAlertCfg,user,users,setUsers}){
   const salvarSenha=async()=>{
     setErr('');setMsg('');
     const u=users.find(x=>x.email===user.email);
-    if(!u||u.senha!==f.atual){setErr('Senha atual incorreta.');return;}
+    const hAtual=await hashSenha(f.atual);
+    if(!u||u.senha!==hAtual){setErr('Senha atual incorreta.');return;}
     const er=validaSenha(f.nova);if(er){setErr(er);return;}
     if(f.nova!==f.conf){setErr('Senhas não conferem.');return;}
     try{
-      await db.updateUser(user.email,{senha:f.nova});
-      setUsers(us=>us.map(x=>x.email===user.email?{...x,senha:f.nova}:x));
+      const hNova=await hashSenha(f.nova);
+      await db.updateUser(user.email,{senha:hNova});
+      setUsers(us=>us.map(x=>x.email===user.email?{...x,senha:hNova}:x));
       setMsg('Senha alterada!');setF({atual:'',nova:'',conf:''});
     }catch{setErr('Erro ao salvar. Tente novamente.');}
   };
