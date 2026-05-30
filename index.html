@@ -148,12 +148,13 @@ const db={
   async deletePendente(email){await sb.from('pendentes').delete().eq('email',email);},
   // PEDIDOS
   async getPedidos(){const{data}=await sb.from('pedidos').select('*').order('entrega');return data||[];},
+  async deletePedido(id){await sb.from('pedidos').delete().eq('id',id);},
   async savePedido(p){
     const row={id:p.id,nf:p.nf||'',cliente:p.cliente,data_pedido:p.dataPedido||null,entrega:p.entrega,
       vendedor:p.vendedor||'',etapa:p.etapa,ultima_at:p.ultimaAt,obs:p.obs||'',
       produto:p.produto||'',quantidade:p.quantidade||'',area_entrega:p.areaEntrega||'',
       foto_pedido:p.fotoPedido||null,foto_producao:p.fotoP||null,foto_entrega:p.fotoE||null,historico:p.hist||[],
-      prioridade:p.prioridade||null,tipo:p.tipo||'Venda'};
+      prioridade:p.prioridade||null,tipo:p.tipo||'Venda',comentarios:p.comentarios||[]};
     await sb.from('pedidos').upsert(row,{onConflict:'id'});
   },
   // FOTOS — upload para storage, retorna URL pública
@@ -180,7 +181,8 @@ function rowToApp(r){
     hist:Array.isArray(r.historico)?r.historico:[],
     fotoPedido:r.foto_pedido||null,fotoP:r.foto_producao||null,fotoE:r.foto_entrega||null,
     prioridade:r.prioridade||null,
-    tipo:r.tipo||'Venda'
+    tipo:r.tipo||'Venda',
+    comentarios:Array.isArray(r.comentarios)?r.comentarios:[]
   };
 }
 
@@ -1139,6 +1141,34 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
     await db.savePedido(novo);
     setEditando(false);
   };
+
+  const excluir=async()=>{
+    if(!window.confirm(`Excluir ${pedido.id}? Esta ação não pode ser desfeita.`))return;
+    setPedidos(ps=>ps.filter(p=>p.id!==pedido.id));
+    await db.deletePedido(pedido.id);
+    onClose();
+  };
+
+  const duplicar=async()=>{
+    const novoId=`${pedido.id}-COPIA`;
+    const novo={...pedido,id:novoId,etapa:'Recebido',prioridade:null,fotoPedido:null,fotoP:null,fotoE:null,nf:'',
+      hist:[{d:agora(),m:`Duplicado de ${pedido.id}`,u:user.nome}],
+      ultimaAt:new Date().toISOString().split('T')[0],comentarios:[]};
+    setPedidos(ps=>[novo,...ps]);
+    await db.savePedido(novo);
+    onClose();
+  };
+
+  const [novoComent,setNovoComent]=useState('');
+  const [etapaComent,setEtapaComent]=useState(pedido.etapa);
+  const adicionarComentario=async()=>{
+    if(!novoComent.trim())return;
+    const c={d:agora(),msg:novoComent.trim(),etapa:etapaComent,u:user.nome};
+    const novo={...pedido,comentarios:[...(pedido.comentarios||[]),c],ultimaAt:new Date().toISOString().split('T')[0]};
+    setPedidos(ps=>ps.map(p=>p.id===pedido.id?novo:p));
+    await db.savePedido(novo);
+    setNovoComent('');
+  };
   // ciclo: dias entre pedido e entrega confirmada (ou hoje)
   const dPedido=pedido.dataPedido?new Date(pedido.dataPedido+'T12:00:00'):null;
   const dEntrega=pedido.etapa==='Entregue'?new Date(pedido.ultimaAt+'T12:00:00'):HOJE;
@@ -1246,7 +1276,9 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
             pedido.produto&&e(ProdutoTabela,{produto:pedido.produto,quantidade:pedido.quantidade,style:{marginTop:4}})
           ),
           e('div',{style:{display:'flex',gap:6}},
-            e('button',{onClick:abrirEdicao,style:{background:'var(--surface)',border:'1px solid var(--border2)',borderRadius:8,padding:'6px 10px',display:'flex',alignItems:'center',gap:4,color:'var(--muted)',fontSize:12,fontWeight:600}},'✏️'),
+            e('button',{onClick:duplicar,title:'Duplicar pedido',style:{background:'var(--surface)',border:'1px solid var(--border2)',borderRadius:8,padding:'6px 10px',display:'flex',alignItems:'center',gap:4,color:'var(--muted)',fontSize:12,fontWeight:600}},'⎘'),
+            e('button',{onClick:abrirEdicao,title:'Editar pedido',style:{background:'var(--surface)',border:'1px solid var(--border2)',borderRadius:8,padding:'6px 10px',display:'flex',alignItems:'center',gap:4,color:'var(--muted)',fontSize:12,fontWeight:600}},'✏️'),
+            isAdmin&&e('button',{onClick:excluir,title:'Excluir pedido',style:{background:'#f43f5e18',border:'1px solid #f43f5e40',borderRadius:8,padding:'6px 10px',display:'flex',alignItems:'center',gap:4,color:'#f43f5e',fontSize:12,fontWeight:600}},'🗑'),
             e('button',{onClick:onClose,style:{background:'var(--surface)',border:'1px solid var(--border2)',borderRadius:8,padding:'6px',display:'flex',color:'var(--muted)'}},e(Ic.x))
           )
         ),
@@ -1360,6 +1392,28 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
                     )
               )
             )
+          )
+        ),
+        // Comentários por etapa
+        e('div',{style:{marginBottom:18}},
+          e('div',{style:{fontSize:10,fontWeight:600,textTransform:'uppercase',letterSpacing:'.07em',color:'var(--muted)',marginBottom:10}},'COMENTÁRIOS'),
+          (pedido.comentarios||[]).length===0
+            ?e('div',{style:{color:'var(--muted)',fontSize:12,marginBottom:8}},'Nenhum comentário ainda.')
+            :e('div',{style:{marginBottom:10,display:'flex',flexDirection:'column',gap:6}},
+              (pedido.comentarios||[]).map((c,i)=>e('div',{key:i,style:{background:'var(--surface)',borderRadius:8,padding:'8px 10px',borderLeft:'2px solid var(--accent)'}},
+                e('div',{style:{display:'flex',justifyContent:'space-between',marginBottom:3}},
+                  e('span',{style:{fontSize:10,fontWeight:700,color:'var(--accent2)',background:'var(--accent-bg)',padding:'1px 6px',borderRadius:4}},c.etapa),
+                  e('span',{style:{fontSize:10,color:'var(--muted)'}},c.u,' · ',c.d)
+                ),
+                e('div',{style:{fontSize:12,color:'var(--text)'}},c.msg)
+              ))
+            ),
+          e('div',{style:{display:'flex',gap:6}},
+            e('select',{className:'form-input',value:etapaComent,onChange:ev=>setEtapaComent(ev.target.value),style:{flex:'0 0 auto',width:120,fontSize:12,padding:'7px 8px'}},
+              ['Recebido','Separado','Expedição','Entregue'].map(et=>e('option',{key:et,value:et},et))
+            ),
+            e('input',{className:'form-input',placeholder:'Adicionar comentário...',value:novoComent,onChange:ev=>setNovoComent(ev.target.value),onKeyDown:ev=>ev.key==='Enter'&&adicionarComentario(),style:{flex:1,marginBottom:0}}),
+            e('button',{onClick:adicionarComentario,style:{background:'var(--accent)',color:'#fff',border:'none',borderRadius:8,padding:'0 14px',fontWeight:700,fontSize:16,flexShrink:0,cursor:'pointer'}},'↵')
           )
         ),
         // Histórico
