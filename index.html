@@ -264,8 +264,11 @@ function App(){
   const [user,setUser]=useState(null);
   const [pag,setPag]=useState('dashboard');
   const [alertCfg,setAlertCfg]=useState({ativo:true,escopo:'ambos',intervalo:30});
-  const [notifs,setNotifs]=useState([]);
+  const [notifs,setNotifs]=useState(()=>{try{const s=localStorage.getItem('orderly_notifs');return s?JSON.parse(s):[];}catch{return[];}});
   const [loading,setLoading]=useState(true);
+
+  // Persistir notificações
+  useEffect(()=>{try{localStorage.setItem('orderly_notifs',JSON.stringify(notifs.slice(0,8)));}catch(ex){}},[notifs]);
 
   // Carregar dados do Supabase ao iniciar
   useEffect(()=>{
@@ -936,13 +939,21 @@ function Pedidos({pedidos,setPedidos,user,onAbrir,onNovo}){
   const isAdmin=user.role==='admin';
   const [filtro,setFiltro]=useState('todos');
   const [vendFiltro,setVendFiltro]=useState('todos');
+  const [busca,setBusca]=useState('');
+  const [pagina,setPagina]=useState(1);
+  const POR_PAG=20;
   const FLT=[{id:'todos',lbl:'Todos'},{id:'atrasado',lbl:'Atrasados'},{id:'atencao',lbl:'Atenção'},{id:'proximo',lbl:'Próximos'},{id:'producao',lbl:'Separado'},{id:'confirmado',lbl:'Entregues'}];
   const vendedores=[...new Set(pedidos.map(p=>p.vendedor).filter(Boolean))].sort();
   const lista=pedidos.filter(p=>{
     const okStatus=filtro==='todos'?true:filtro==='producao'?p.etapa==='Separado':calcStatus(p)===filtro;
     const okVend=vendFiltro==='todos'||p.vendedor===vendFiltro;
-    return okStatus&&okVend;
+    const q=busca.toLowerCase();
+    const okBusca=!q||p.id.toLowerCase().includes(q)||p.cliente.toLowerCase().includes(q)||(p.vendedor||'').toLowerCase().includes(q)||(p.areaEntrega||'').toLowerCase().includes(q);
+    return okStatus&&okVend&&okBusca;
   }).sort((a,b)=>new Date(a.entrega)-new Date(b.entrega));
+  const totalPag=Math.ceil(lista.length/POR_PAG);
+  const listaPag=lista.slice((pagina-1)*POR_PAG,pagina*POR_PAG);
+  const mudarFiltro=(v,fn)=>{fn(v);setPagina(1);};
 
   return e('div',{className:'fade-up'},
     e('div',{className:'page-label'},'OPERAÇÃO'),
@@ -950,15 +961,25 @@ function Pedidos({pedidos,setPedidos,user,onAbrir,onNovo}){
       e('h1',{className:'page-title'},'Pedidos'),
       e('button',{onClick:onNovo,style:{background:'var(--text)',color:'var(--bg)',border:'none',borderRadius:9,padding:'9px 14px',fontWeight:700,fontSize:13,display:'flex',alignItems:'center',gap:5,flexShrink:0}},e(Ic.plus),'Novo')
     ),
+    e('div',{style:{position:'relative',marginBottom:12}},
+      e('span',{style:{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',fontSize:14,pointerEvents:'none'}},'🔍'),
+      e('input',{className:'form-input',placeholder:'Buscar por pedido, cliente, vendedor...',value:busca,onChange:ev=>{setBusca(ev.target.value);setPagina(1);},style:{paddingLeft:34,marginBottom:0}})
+    ),
     e('div',{className:'filters-row',style:{marginBottom:8}},
-      FLT.map(f=>e('button',{key:f.id,className:`filter-btn${filtro===f.id?' active':''}`,onClick:()=>setFiltro(f.id)},f.lbl))
+      FLT.map(f=>e('button',{key:f.id,className:`filter-btn${filtro===f.id?' active':''}`,onClick:()=>mudarFiltro(f.id,setFiltro)},f.lbl))
     ),
-    e('div',{className:'filters-row',style:{marginBottom:14}},
-      e('button',{className:`filter-btn${vendFiltro==='todos'?' active':''}`,onClick:()=>setVendFiltro('todos')},'👤 Todos'),
-      vendedores.map(v=>e('button',{key:v,className:`filter-btn${vendFiltro===v?' active':''}`,onClick:()=>setVendFiltro(v)},v))
+    isAdmin&&e('div',{className:'filters-row',style:{marginBottom:14}},
+      e('button',{className:`filter-btn${vendFiltro==='todos'?' active':''}`,onClick:()=>mudarFiltro('todos',setVendFiltro)},'👤 Todos'),
+      vendedores.map(v=>e('button',{key:v,className:`filter-btn${vendFiltro===v?' active':''}`,onClick:()=>mudarFiltro(v,setVendFiltro)},v))
     ),
-    e('div',{className:'grid-3'},lista.map(p=>e(CardPed,{key:p.id,p,isAdmin,onClick:()=>onAbrir(p.id)}))),
-    lista.length===0&&e('div',{style:{textAlign:'center',padding:'60px 20px',color:'var(--muted)'}},e('div',{style:{fontSize:32,marginBottom:8}},'📭'),e('div',{},'Nenhum pedido aqui'))
+    lista.length>0&&e('div',{style:{fontSize:11,color:'var(--muted)',marginBottom:10}}),
+    e('div',{className:'grid-3'},listaPag.map(p=>e(CardPed,{key:p.id,p,isAdmin,onClick:()=>onAbrir(p.id)}))),
+    lista.length===0&&e('div',{style:{textAlign:'center',padding:'60px 20px',color:'var(--muted)'}},e('div',{style:{fontSize:32,marginBottom:8}},'📭'),e('div',{},'Nenhum pedido aqui')),
+    totalPag>1&&e('div',{style:{display:'flex',justifyContent:'center',alignItems:'center',gap:8,marginTop:16,flexWrap:'wrap'}},
+      e('button',{onClick:()=>setPagina(p=>Math.max(1,p-1)),disabled:pagina===1,style:{padding:'6px 14px',borderRadius:8,border:'1px solid var(--border2)',background:'var(--surface)',color:pagina===1?'var(--muted)':'var(--text)',cursor:pagina===1?'default':'pointer',fontWeight:600}},'← Anterior'),
+      e('span',{style:{fontSize:12,color:'var(--muted)',padding:'0 4px'}},`${pagina} / ${totalPag} · ${lista.length} pedidos`),
+      e('button',{onClick:()=>setPagina(p=>Math.min(totalPag,p+1)),disabled:pagina===totalPag,style:{padding:'6px 14px',borderRadius:8,border:'1px solid var(--border2)',background:'var(--surface)',color:pagina===totalPag?'var(--muted)':'var(--text)',cursor:pagina===totalPag?'default':'pointer',fontWeight:600}},'Próximo →')
+    )
   );
 }
 
