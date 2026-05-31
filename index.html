@@ -3,8 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Orderly">
+<meta name="theme-color" content="#0f172a">
+<link rel="manifest" href="data:application/json;charset=utf-8,%7B%22name%22%3A%22Econstru%C3%A7%C3%A3o%20Pr%C3%A1tica%20%C2%B7%20Opera%C3%A7%C3%B5es%22%2C%22short_name%22%3A%22Orderly%22%2C%22start_url%22%3A%22%2F%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230f172a%22%2C%22theme_color%22%3A%22%230f172a%22%2C%22orientation%22%3A%22portrait%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22https%3A%2F%2Fplacehold.co%2F192x192%2F6d28d9%2Fffffff%3Ftext%3DOE%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fpng%22%7D%2C%7B%22src%22%3A%22https%3A%2F%2Fplacehold.co%2F512x512%2F6d28d9%2Fffffff%3Ftext%3DOE%22%2C%22sizes%22%3A%22512x512%22%2C%22type%22%3A%22image%2Fpng%22%7D%5D%7D">
 <title>Econstrução Prática · Operações</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -666,7 +670,14 @@ function Shell({user,pedidos,setPedidos,users,setUsers,pendentes,setPendentes,pa
       )
     ),
     pedAberto&&e(ModalPedido,{pedido:pedidos.find(p=>p.id===pedAberto),user,pedidos,setPedidos,onClose:()=>setPedAberto(null)}),
-    showNovo&&e(ModalNovoPedido,{pedidos,setPedidos,user,onClose:()=>setShowNovo(false)})
+    showNovo&&e(ModalNovoPedido,{pedidos,setPedidos,user,onClose:()=>setShowNovo(false)}),
+    // Botão flutuante novo pedido
+    !showNovo&&!pedAberto&&e('button',{
+      onClick:()=>setShowNovo(true),
+      style:{position:'fixed',bottom:24,right:20,zIndex:150,width:52,height:52,borderRadius:99,background:'var(--accent)',border:'none',boxShadow:'0 4px 20px #6d28d966',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',fontSize:26,color:'#fff',transition:'transform .15s'},
+      onMouseEnter:ev=>ev.currentTarget.style.transform='scale(1.1)',
+      onMouseLeave:ev=>ev.currentTarget.style.transform='scale(1)'
+    },'+')
   );
 }
 
@@ -1153,7 +1164,9 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
   };
 
   const duplicar=async()=>{
-    const novoId=`${pedido.id}-COPIA`;
+    const novoNum=prompt('Número do novo pedido:','');
+    if(novoNum===null)return;
+    const novoId=novoNum.trim()?`PED-${novoNum.trim().replace(/^PED-/,'')}`:`${pedido.id}-COPIA`;
     const novo={...pedido,id:novoId,etapa:'Recebido',prioridade:null,fotoPedido:null,fotoP:null,fotoE:null,nf:'',
       hist:[{d:agora(),m:`Duplicado de ${pedido.id}`,u:user.nome}],
       ultimaAt:new Date().toISOString().split('T')[0],comentarios:[]};
@@ -2010,6 +2023,21 @@ function Relatorio({pedidos,user}){
 
 // ── RENDER ────────────────────────────────────────────
 ReactDOM.render(e(App),document.getElementById('root'));
+
+// PWA Service Worker
+if('serviceWorker' in navigator){
+  const sw=`
+    const CACHE='orderly-v1';
+    const ASSETS=['/'];
+    self.addEventListener('install',ev=>ev.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
+    self.addEventListener('fetch',ev=>ev.respondWith(
+      fetch(ev.request).catch(()=>caches.match(ev.request))
+    ));
+  `;
+  const blob=new Blob([sw],{type:'application/javascript'});
+  const url=URL.createObjectURL(blob);
+  navigator.serviceWorker.register(url).catch(()=>{});
+}
 </script>
 </body>
 </html>
