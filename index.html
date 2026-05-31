@@ -153,6 +153,9 @@ const db={
   // PEDIDOS
   async getPedidos(){const{data}=await sb.from('pedidos').select('*').order('entrega');return data||[];},
   async deletePedido(id){await sb.from('pedidos').delete().eq('id',id);},
+  async audit(usuario,acao,detalhe='',pedido_id=null){
+    try{await sb.from('auditoria').insert({usuario,acao,detalhe,pedido_id});}catch(e){}
+  },
   async savePedido(p){
     const row={id:p.id,nf:p.nf||'',cliente:p.cliente,data_pedido:p.dataPedido||null,entrega:p.entrega,
       vendedor:p.vendedor||'',etapa:p.etapa,ultima_at:p.ultimaAt,obs:p.obs||'',
@@ -394,6 +397,12 @@ function App(){
 
   if(!user)return e(LoginFlow,{users,setUsers,pendentes,setPendentes,onLogin:(u)=>{
     try{localStorage.setItem('orderly_session',JSON.stringify({email:u.email,senha:u.senha}));}catch(ex){} // senha já é hash
+    // Notificar se é primeiro login após aprovação
+    const chave=`orderly_boas_vindas_${u.email}`;
+    if(!localStorage.getItem(chave)&&u.aprovado_em){
+      setTimeout(()=>setNotifs(n=>[{id:'bv',msg:`Bem-vindo(a), ${u.nome}! Sua conta foi aprovada. 🎉`,tipo:'ok'},...n].slice(0,10)),800);
+      try{localStorage.setItem(chave,'1');}catch(ex){}
+    }
     setUser(u);setPag('dashboard');
   }});
   return e(Shell,{user,pedidos,setPedidos:setPedidosDB,users,setUsers,pendentes,setPendentes,pag,setPag,alertCfg,setAlertCfg,notifs,setNotifs,onLogout:()=>{
@@ -1160,6 +1169,7 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
     if(!window.confirm(`Excluir ${pedido.id}? Esta ação não pode ser desfeita.`))return;
     setPedidos(ps=>ps.filter(p=>p.id!==pedido.id));
     await db.deletePedido(pedido.id);
+    await db.audit(user.nome,'EXCLUIR_PEDIDO',`Cliente: ${pedido.cliente}`,pedido.id);
     onClose();
   };
 
@@ -1229,6 +1239,7 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
     const novo={...pedido,etapa:'Entregue',hist:[...pedido.hist,{d:agora(),m:'Entrega confirmada ✓',u:user.nome}],ultimaAt:new Date().toISOString().split('T')[0]};
     setPedidos(ps=>ps.map(p=>p.id===pedido.id?novo:p));
     await db.savePedido(novo);
+    await db.audit(user.nome,'CONFIRMAR_ENTREGA','',pedido.id);
     onClose();
   };
   const marcarRisco=async()=>{
@@ -1652,8 +1663,9 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
 function Usuarios({users,setUsers,pendentes,setPendentes}){
   const aprovar=async(u)=>{
     try{
-      await db.addUser({...u,ativo:true});
+      await db.addUser({...u,ativo:true,aprovado_em:new Date().toISOString()});
       await db.deletePendente(u.email);
+      await db.audit('admin','APROVAR_USUARIO',`Email: ${u.email}`);
       setUsers(us=>[...us,{...u,ativo:true}]);
       setPendentes(p=>p.filter(x=>x.email!==u.email));
     }catch(err){console.error('Erro ao aprovar:',err);}
@@ -1882,11 +1894,12 @@ function Relatorio({pedidos,user}){
 
   // exportar CSV
   const exportarCSV=()=>{
-    const header='Pedido,Cliente,Vendedor,Data Pedido,Data Entrega,Etapa,Status,Dias Ciclo,Observação';
+    const header='Pedido,Cliente,Vendedor,Data Pedido,Data Entrega,Etapa,Status,Dias Ciclo,Observação,Comentários';
     const rows=filtrados.map(p=>{
       const s=lblS(calcStatus(p));
       const ciclo=p.dataPedido&&p.ultimaAt?Math.round((new Date(p.ultimaAt+'T12:00:00')-new Date(p.dataPedido+'T12:00:00'))/86400000):'';
-      return[p.id,p.cliente,p.vendedor||'',fmtD(p.dataPedido),fmtD(p.entrega),p.etapa,s,ciclo,p.obs||''].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
+      const coments=(p.comentarios||[]).map(c=>`[${c.etapa}] ${c.msg} (${c.u})`).join(' | ');
+      return[p.id,p.cliente,p.vendedor||'',fmtD(p.dataPedido),fmtD(p.entrega),p.etapa,s,ciclo,p.obs||'',coments].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',');
     });
     const csv=[header,...rows].join('\n');
     const a=document.createElement('a');
@@ -1899,7 +1912,8 @@ function Relatorio({pedidos,user}){
     const rows=filtrados.map(p=>{
       const s=lblS(calcStatus(p));
       const ciclo=p.dataPedido&&p.ultimaAt?Math.round((new Date(p.ultimaAt+'T12:00:00')-new Date(p.dataPedido+'T12:00:00'))/86400000)+'d':'—';
-      return'<tr style="border-bottom:1px solid #eee"><td style="padding:5px 8px;font-weight:700;font-family:monospace">'+p.id+'</td><td style="padding:5px 8px">'+p.cliente+'</td><td style="padding:5px 8px">'+(p.vendedor||'—')+'</td><td style="padding:5px 8px">'+fmtD(p.entrega)+'</td><td style="padding:5px 8px">'+p.etapa+'</td><td style="padding:5px 8px">'+s+'</td><td style="padding:5px 8px">'+ciclo+'</td></tr>';
+      const coments=(p.comentarios||[]).map(c=>`[${c.etapa}] ${c.msg}`).join('; ');
+      return'<tr style="border-bottom:1px solid #eee"><td style="padding:5px 8px;font-weight:700;font-family:monospace">'+p.id+'</td><td style="padding:5px 8px">'+p.cliente+'</td><td style="padding:5px 8px">'+(p.vendedor||'—')+'</td><td style="padding:5px 8px">'+fmtD(p.entrega)+'</td><td style="padding:5px 8px">'+p.etapa+'</td><td style="padding:5px 8px">'+s+'</td><td style="padding:5px 8px">'+ciclo+'</td><td style="padding:5px 8px;font-size:11px;color:#666">'+coments+'</td></tr>';
     }).join('');
     const html='<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório Orderly</title><style>body{font-family:Arial,sans-serif;padding:20px;color:#111;font-size:13px}h1{font-size:16px;margin-bottom:4px}.sub{color:#666;font-size:11px;margin-bottom:14px}table{width:100%;border-collapse:collapse}th{background:#f3f4f6;padding:7px 8px;text-align:left;font-size:10px;text-transform:uppercase;border-bottom:2px solid #ddd}tr:hover{background:#f9fafb}@media print{button{display:none}}</style></head><body><h1>Relatório de Pedidos — Econstrução Prática</h1><div class="sub">Gerado em '+new Date().toLocaleDateString('pt-BR')+' · '+filtrados.length+' pedidos</div><table><thead><tr><th>Pedido</th><th>Cliente</th><th>Vendedor</th><th>Entrega</th><th>Etapa</th><th>Status</th><th>Ciclo</th></tr></thead><tbody>'+rows+'</tbody></table><br><button onclick="window.print()" style="padding:8px 16px;background:#6d28d9;color:#fff;border:none;border-radius:6px;cursor:pointer">🖨 Imprimir / Salvar PDF</button></body></html>';
     const w=window.open('','_blank');w.document.write(html);w.document.close();
