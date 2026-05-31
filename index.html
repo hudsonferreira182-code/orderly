@@ -27,6 +27,15 @@
   --accent:#7c6af7;--accent2:#a89ff8;--accent-bg:#7c6af718;
   --nav-h:64px;--header-h:56px;
 }
+.light{
+  --bg:#f1f5f9;--surface:#ffffff;--card:#ffffff;--card2:#f8fafc;
+  --border:#e2e8f0;--border2:#cbd5e1;--text:#0f172a;--muted:#64748b;--muted2:#94a3b8;
+  --green:#16a34a;--green-bg:#dcfce7;--green-bd:#86efac;
+  --red:#dc2626;--red-bg:#fee2e2;--red-bd:#fca5a5;
+  --yellow:#d97706;--yellow-bg:#fef3c7;--yellow-bd:#fcd34d;
+  --blue:#0284c7;--blue-bg:#e0f2fe;--blue-bd:#7dd3fc;
+  --accent:#6d28d9;--accent2:#7c3aed;--accent-bg:#ede9fe;
+}
 html,body,#root{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;overflow:hidden}
 *{scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
 ::-webkit-scrollbar{width:3px;height:3px}
@@ -894,13 +903,17 @@ function Calendario({pedidos,onAbrir}){
   const _hoje=new Date();
   const [mes,setMes]=useState(_hoje.getMonth());const [ano,setAno]=useState(_hoje.getFullYear());
   const [diaExpand,setDiaExpand]=useState(null);
+  const [busca,setBusca]=useState('');
   const fecharExpand=()=>setDiaExpand(null);
   const MESES=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
   const DIAS=['D','S','T','Q','Q','S','S'];
   const prim=new Date(ano,mes,1).getDay();
   const diasN=new Date(ano,mes+1,0).getDate();
+  const pedidosFiltrados=busca.trim()
+    ?pedidos.filter(p=>p.id.toLowerCase().includes(busca.toLowerCase())||p.cliente.toLowerCase().includes(busca.toLowerCase()))
+    :pedidos;
   const pedDia={};
-  pedidos.forEach(p=>{
+  pedidosFiltrados.forEach(p=>{
     const d=new Date(p.entrega+'T12:00:00');
     if(d.getMonth()===mes&&d.getFullYear()===ano){
       const k=d.getDate();if(!pedDia[k])pedDia[k]=[];pedDia[k].push(p);
@@ -914,12 +927,16 @@ function Calendario({pedidos,onAbrir}){
 
   return e('div',{className:'fade-up'},
     e('div',{className:'page-label'},'AGENDA OPERACIONAL'),
-    e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16}},
+    e('div',{style:{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:10}},
       e('h1',{className:'page-title'},MESES[mes]+' '+ano),
       e('div',{style:{display:'flex',gap:6}},
         e('button',{onClick:()=>{mes===0?(setMes(11),setAno(a=>a-1)):setMes(m=>m-1);},style:{background:'var(--card)',border:'1px solid var(--border2)',borderRadius:8,padding:'7px 10px',color:'var(--text)',display:'flex'}},Ic.arr(true)),
         e('button',{onClick:()=>{mes===11?(setMes(0),setAno(a=>a+1)):setMes(m=>m+1);},style:{background:'var(--card)',border:'1px solid var(--border2)',borderRadius:8,padding:'7px 10px',color:'var(--text)',display:'flex'}},Ic.arr(false))
       )
+    ),
+    e('div',{style:{position:'relative',marginBottom:12}},
+      e('span',{style:{position:'absolute',left:11,top:'50%',transform:'translateY(-50%)',fontSize:13,pointerEvents:'none'}},'🔍'),
+      e('input',{className:'form-input',placeholder:'Buscar pedido ou cliente...',value:busca,onChange:ev=>setBusca(ev.target.value),style:{paddingLeft:34,marginBottom:0}})
     ),
     e('div',{className:'card',style:{padding:0,overflow:'hidden'}},
       e('div',{style:{display:'grid',gridTemplateColumns:'repeat(7,1fr)',borderBottom:'1px solid var(--border)'}},
@@ -1785,6 +1802,15 @@ function Config({alertCfg,setAlertCfg,user,users,setUsers}){
   const [f,setF]=useState({atual:'',nova:'',conf:''});
   const [err,setErr]=useState('');const [msg,setMsg]=useState('');
   const fld=(k,v)=>setF(x=>({...x,[k]:v}));
+  const [temaClaro,setTemaClaro]=useState(()=>localStorage.getItem('orderly_tema')==='claro');
+  const toggleTema=()=>{
+    const novo=!temaClaro;
+    setTemaClaro(novo);
+    localStorage.setItem('orderly_tema',novo?'claro':'escuro');
+    document.documentElement.classList.toggle('light',novo);
+  };
+  // Aplicar tema salvo ao montar
+  React.useEffect(()=>{document.documentElement.classList.toggle('light',temaClaro);},[]);
 
   const salvarSenha=async()=>{
     setErr('');setMsg('');
@@ -1817,6 +1843,10 @@ function Config({alertCfg,setAlertCfg,user,users,setUsers}){
     e('div',{className:'page-label'},'SISTEMA'),
     e('h1',{className:'page-title',style:{marginBottom:18}},'Configurações'),
     e('div',{className:'settings-grid'},
+      e('div',{className:'card'},
+        e('div',{style:{fontWeight:700,fontSize:14,marginBottom:12}},'🎨 Aparência'),
+        e(Toggle,{lbl:'Modo claro',desc:'Alternar entre tema escuro e claro',val:temaClaro,onChange:toggleTema})
+      ),
       e('div',{className:'card'},
         e('div',{style:{fontWeight:700,fontSize:14,marginBottom:4}},'🔔 Alertas'),
         e(Toggle,{lbl:'Ativar alertas',desc:'Notificações sobre pedidos críticos',val:alertCfg.ativo,onChange:v=>setAlertCfg({...alertCfg,ativo:v})}),
@@ -2037,6 +2067,9 @@ function Relatorio({pedidos,user}){
 
 // ── RENDER ────────────────────────────────────────────
 ReactDOM.render(e(App),document.getElementById('root'));
+
+// Aplicar tema salvo
+if(localStorage.getItem('orderly_tema')==='claro')document.documentElement.classList.add('light');
 
 // PWA Service Worker
 if('serviceWorker' in navigator){
