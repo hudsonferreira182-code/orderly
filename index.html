@@ -235,6 +235,13 @@ const hashSenha=async(senha)=>{
   const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(senha));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
 };
+// Remove zeros decimais desnecessários: "300,0000" → "300", "1.000,50" → "1.000,50"
+const limparQuantidade=v=>{
+  if(!v)return v;
+  const s=String(v).trim();
+  // Remove casas decimais se forem todas zero: 300,0000 → 300
+  return s.replace(/([,\.]\d*[1-9]) *$|[,\.]0+$/,'$1').replace(/[,\.]0+$/,'');
+};
 // Remove prefixo numérico do vendedor: "6 - ANDRE" → "Andre", "2 - Michell Dias" → "Michell Dias"
 const limparVendedor=v=>{
   if(!v)return v;
@@ -1525,7 +1532,7 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
           entrega:parsed.dataEntrega||prev.entrega,
           vendedor:limparVendedor(parsed.vendedor||prev.vendedor),
           produto:parsed.produto||prev.produto,
-          quantidade:String(parsed.quantidade||prev.quantidade),
+          quantidade:limparQuantidade(String(parsed.quantidade||prev.quantidade)),
           areaEntrega:parsed.areaEntrega||prev.areaEntrega,
         }));
         if(parsed.numeroPedido){
@@ -1573,7 +1580,7 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
     const idFinal=numOCR?`PED-${numOCR}`:nextId();
     const novoPed={
       id:idFinal,nf:'',cliente:f.cliente,dataPedido:f.dataPedido,entrega:f.entrega,
-      vendedor:limparVendedor(f.vendedor),produto:f.produto,quantidade:f.quantidade,areaEntrega:f.areaEntrega,tipo:f.tipo||'Venda',
+      vendedor:limparVendedor(f.vendedor),produto:f.produto,quantidade:limparQuantidade(f.quantidade),areaEntrega:f.areaEntrega,tipo:f.tipo||'Venda',
       etapa:f.etapa,ultimaAt:new Date().toISOString().split('T')[0],obs:'',
       hist:[{d:agora(),m:'Pedido criado'+(fotoPedido?' via foto':''),u:user.nome}],
       fotoPedido:fotoPedido,fotoP:null,fotoE:null,prioridade:null
