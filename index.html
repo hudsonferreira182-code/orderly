@@ -1264,6 +1264,21 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
     setPedidos(ps=>ps.map(p=>p.id===pedido.id?novo:p));
     await db.savePedido(novo);
     await db.audit(user.nome,'CONFIRMAR_ENTREGA','',pedido.id);
+    // Upload foto de entrega para Google Drive
+    if(pedido.fotoE){
+      try{
+        await fetch('https://ogqxsiybrbdywcbeudhm.supabase.co/functions/v1/drive-upload',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            pedidoId:pedido.id,
+            imageUrl:pedido.fotoE,
+            fileName:`entrega_${pedido.id}.jpg`,
+            mediaType:'image/jpeg'
+          })
+        });
+      }catch(ex){console.warn('Drive upload falhou:',ex);}
+    }
     onClose();
   };
   const marcarRisco=async()=>{
