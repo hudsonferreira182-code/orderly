@@ -1015,7 +1015,7 @@ function Pedidos({pedidos,setPedidos,user,onAbrir,onNovo}){
   const [tipoFiltro,setTipoFiltro]=useState('todos');
   const [priorFiltro,setPriorFiltro]=useState('todos');
   const lista=pedidos.filter(p=>{
-    const okStatus=filtro==='todos'?true:filtro==='producao'?p.etapa==='Separado':calcStatus(p)===filtro;
+    const okStatus=filtro==='todos'?p.etapa!=='Entregue':filtro==='producao'?p.etapa==='Separado':filtro==='confirmado'?p.etapa==='Entregue':calcStatus(p)===filtro;
     const okVend=vendFiltro==='todos'||p.vendedor===vendFiltro;
     const okTipo=tipoFiltro==='todos'||(p.tipo||'Venda')===tipoFiltro;
     const okPrior=priorFiltro==='todos'||(p.prioridade||'')===priorFiltro;
