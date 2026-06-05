@@ -725,7 +725,7 @@ function Dashboard({pedidos,onAbrir,user}){
   const pipeline=[
     {nome:'Recebido',val:pedFiltrados.filter(p=>p.etapa==='Recebido').length,cor:'var(--blue)'},
     {nome:'Separado',val:pedFiltrados.filter(p=>p.etapa==='Separado').length,cor:'var(--accent2)'},
-    {nome:'Expedição',val:pedFiltrados.filter(p=>p.etapa==='Expedição').length,cor:'var(--yellow)'},
+
     {nome:'Entregue',val:listEntregues.length,cor:'var(--green)'},
   ];
   const maxP=Math.max(...pipeline.map(x=>x.val),1);
@@ -1168,7 +1168,7 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
     await db.savePedido(novo);
     setShowPriorMenu(false);
   };
-  const ETAPAS=['Recebido','Separado','Expedição','Entregue'];
+  const ETAPAS=['Recebido','Separado','Entregue'];
   const idx=ETAPAS.indexOf(pedido.etapa);const cor=corS(s);
 
   const abrirEdicao=()=>{
@@ -1286,7 +1286,7 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
     setPedidos(ps=>ps.map(p=>p.id===pedido.id?novo:p));
     await db.savePedido(novo);
   };
-  const ETAPAS_SEQ=['Recebido','Separado','Expedição','Entregue'];
+  const ETAPAS_SEQ=['Recebido','Separado','Entregue'];
   const proxEtapa=ETAPAS_SEQ[ETAPAS_SEQ.indexOf(pedido.etapa)+1]||null;
   const avancarEtapa=async()=>{
     if(!proxEtapa||proxEtapa==='Entregue')return;
@@ -1476,7 +1476,7 @@ function ModalPedido({pedido,user,pedidos,setPedidos,onClose}){
             ),
           e('div',{style:{display:'flex',gap:6}},
             e('select',{className:'form-input',value:etapaComent,onChange:ev=>setEtapaComent(ev.target.value),style:{flex:'0 0 auto',width:120,fontSize:12,padding:'7px 8px'}},
-              ['Recebido','Separado','Expedição','Entregue'].map(et=>e('option',{key:et,value:et},et))
+              ['Recebido','Separado','Entregue'].map(et=>e('option',{key:et,value:et},et))
             ),
             e('input',{className:'form-input',placeholder:'Adicionar comentário...',value:novoComent,onChange:ev=>setNovoComent(ev.target.value),onKeyDown:ev=>ev.key==='Enter'&&adicionarComentario(),style:{flex:1,marginBottom:0}}),
             e('button',{onClick:adicionarComentario,style:{background:'var(--accent)',color:'#fff',border:'none',borderRadius:8,padding:'0 14px',fontWeight:700,fontSize:16,flexShrink:0,cursor:'pointer'}},'↵')
@@ -1685,7 +1685,7 @@ function ModalNovoPedido({pedidos,setPedidos,user,onClose}){
         e('div',{style:{marginBottom:10}},
           e('label',{style:{display:'block',fontSize:10,fontWeight:600,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'.07em',marginBottom:5}},'ETAPA'),
           e('select',{className:'form-input',value:f.etapa,onChange:ev=>fld('etapa',ev.target.value),style:{fontSize:13}},
-            ['Recebido','Separado','Expedição'].map(et=>e('option',{key:et,value:et},et))
+            ['Recebido','Separado'].map(et=>e('option',{key:et,value:et},et))
           )
         ),
         err&&e('div',{style:{color:'var(--red)',fontSize:12,marginBottom:8}},err),
