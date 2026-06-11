@@ -605,7 +605,7 @@ function Shell({user,pedidos,setPedidos,users,setUsers,pendentes,setPendentes,pa
   const [showNovo,setShowNovo]=useState(false);
   const [showNotifs,setShowNotifs]=useState(false);
   const isAdmin=user.role==='admin';
-  const EMAILS_FULL=['juliana@econstrucao.com.br','producao@econstrucao.com.br','vendas05@econstrucao.com.br'];
+  const EMAILS_FULL=['juliana@econstrucao.com.br','producao@econstrucao.com.br','vendas05@econstrucao.com.br','adm@econstrucao.com.br'];
   const canVerTodos=EMAILS_FULL.includes(user.email?.toLowerCase());
   const pedidosVisiveis=canVerTodos?pedidos:pedidos.filter(p=>p.vendedor&&p.vendedor.toLowerCase()===user.nome?.toLowerCase());
   const pendCount=pendentes.length;
@@ -709,7 +709,7 @@ function Shell({user,pedidos,setPedidos,users,setUsers,pendentes,setPendentes,pa
 // ── DASHBOARD ─────────────────────────────────────────
 function Dashboard({pedidos,onAbrir,user}){
   const isAdminDash=user&&user.role==='admin';
-  const EMAILS_FULL=['juliana@econstrucao.com.br','producao@econstrucao.com.br','vendas05@econstrucao.com.br'];
+  const EMAILS_FULL=['juliana@econstrucao.com.br','producao@econstrucao.com.br','vendas05@econstrucao.com.br','adm@econstrucao.com.br'];
   const canVerTodosDash=EMAILS_FULL.includes(user?.email?.toLowerCase());
   const hoje=new Date();
   const [expanded,setExpanded]=useState(null);
