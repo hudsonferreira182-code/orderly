@@ -604,6 +604,26 @@ function Shell({user,pedidos,setPedidos,users,setUsers,pendentes,setPendentes,pa
   const [pedAberto,setPedAberto]=useState(null);
   const [showNovo,setShowNovo]=useState(false);
   const [showNotifs,setShowNotifs]=useState(false);
+  const [refreshing,setRefreshing]=useState(false);
+  // Pull-to-refresh
+  React.useEffect(()=>{
+    let startY=0;
+    const onTouchStart=ev=>{startY=ev.touches[0].clientY;};
+    const onTouchEnd=async ev=>{
+      const dy=ev.changedTouches[0].clientY-startY;
+      if(dy>80&&window.scrollY===0&&!refreshing){
+        setRefreshing(true);
+        try{
+          const ps=await db.getPedidos();
+          setPedidos(ps.map(rowToApp));
+        }catch(ex){}
+        setRefreshing(false);
+      }
+    };
+    document.addEventListener('touchstart',onTouchStart,{passive:true});
+    document.addEventListener('touchend',onTouchEnd,{passive:true});
+    return()=>{document.removeEventListener('touchstart',onTouchStart);document.removeEventListener('touchend',onTouchEnd);};
+  },[refreshing]);
   const isAdmin=user.role==='admin';
   const EMAILS_FULL=['juliana@econstrucao.com.br','producao@econstrucao.com.br','vendas05@econstrucao.com.br','adm@econstrucao.com.br'];
   const canVerTodos=EMAILS_FULL.includes(user.email?.toLowerCase());
@@ -658,6 +678,8 @@ function Shell({user,pedidos,setPedidos,users,setUsers,pendentes,setPendentes,pa
         e('button',{onClick:onLogout,style:{width:'100%',background:'var(--red-bg)',border:'1px solid var(--red-bd)',color:'var(--red)',borderRadius:8,padding:'8px',fontSize:13,fontWeight:600,display:'flex',alignItems:'center',justifyContent:'center',gap:6}},e(Ic.out),'Sair')
       )
     ),
+    // Indicador pull-to-refresh
+    refreshing&&e('div',{style:{position:'fixed',top:0,left:0,right:0,zIndex:999,background:'var(--accent)',color:'#fff',textAlign:'center',fontSize:11,fontWeight:700,padding:'4px',letterSpacing:'.05em'}},'⟳ Atualizando...'),
     // ÁREA PRINCIPAL
     e('div',{style:{flex:1,display:'flex',flexDirection:'column',minWidth:0,height:'100vh',overflow:'hidden'}},
       // Header mobile
@@ -671,6 +693,7 @@ function Shell({user,pedidos,setPedidos,users,setUsers,pendentes,setPendentes,pa
             e('button',{onClick:()=>setShowNotifs(!showNotifs),style:{background:'var(--card)',border:'1px solid var(--border2)',borderRadius:8,padding:'7px',display:'flex',color:notifsN?'var(--yellow)':'var(--muted)'}},e(Ic.bell)),
             notifsN>0&&e('span',{style:{position:'absolute',top:-4,right:-4,background:'var(--red)',color:'#fff',borderRadius:99,fontSize:9,padding:'0 4px',fontWeight:700,pointerEvents:'none'}},notifsN)
           ),
+          e('button',{onClick:onLogout,title:'Sair',style:{background:'var(--red-bg)',border:'1px solid var(--red-bd)',borderRadius:8,padding:'7px 10px',display:'flex',alignItems:'center',color:'var(--red)',fontSize:12,fontWeight:700,gap:4}},e(Ic.out),'Sair'),
           avatar
         )
       ),
@@ -2096,12 +2119,14 @@ if(localStorage.getItem('orderly_tema')==='claro')document.documentElement.class
 // PWA Service Worker
 if('serviceWorker' in navigator){
   const sw=`
-    const CACHE='orderly-v1';
-    const ASSETS=['/'];
-    self.addEventListener('install',ev=>ev.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
-    self.addEventListener('fetch',ev=>ev.respondWith(
-      fetch(ev.request).catch(()=>caches.match(ev.request))
+    self.addEventListener('install',()=>self.skipWaiting());
+    self.addEventListener('activate',ev=>ev.waitUntil(
+      caches.keys().then(ks=>Promise.all(ks.map(k=>caches.delete(k))))
     ));
+    self.addEventListener('fetch',ev=>{
+      if(ev.request.method!=='GET')return;
+      ev.respondWith(fetch(ev.request).catch(()=>caches.match(ev.request)));
+    });
   `;
   const blob=new Blob([sw],{type:'application/javascript'});
   const url=URL.createObjectURL(blob);
